@@ -43,6 +43,14 @@ export async function validateEpisode(
   root: string,
 ): Promise<ValidationResult> {
   const errors: string[] = [];
+  if (!episode || typeof episode !== 'object')
+    return { valid: false, errors: ['episode must be an object'] };
+  if (!Array.isArray(episode.beats)) errors.push('beats must be an array');
+  if (!Array.isArray(episode.shots)) errors.push('shots must be an array');
+  if (!episode.narration || typeof episode.narration !== 'object')
+    errors.push('narration is required');
+  if (!episode.release || typeof episode.release !== 'object')
+    errors.push('release is required');
   if (episode?.schemaVersion !== 1)
     errors.push('unsupported schemaVersion; expected 1');
   const ids = new Set<string>();
@@ -71,6 +79,20 @@ export async function validateEpisode(
       'reference bundle',
       errors,
     );
+  if (episode?.narration) {
+    for (const [label, path] of [
+      ['narration audio', episode.narration.audioPath],
+      ['narration alignment', episode.narration.alignmentPath],
+    ] as const) {
+      try {
+        await resolveContained(root, path);
+      } catch (error) {
+        errors.push(
+          `${label} path is unsafe: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
   for (const beat of episode?.beats ?? []) {
     addId(errors, ids, beat.id, 'beat ID');
     if (
@@ -93,6 +115,13 @@ export async function validateEpisode(
         errors.push(`shot ${shot.id} references missing beat ${beatId}`);
     if (shot.image.sha256 !== null && !HASH.test(shot.image.sha256))
       errors.push(`invalid image hash for ${shot.id}`);
+    try {
+      await resolveContained(root, shot.image.path);
+    } catch (error) {
+      errors.push(
+        `image path is unsafe for ${shot.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     if (
       shot.semanticReview.status === 'pass' &&
       shot.semanticReview.reviewedImageSha256 !== shot.image.sha256

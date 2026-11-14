@@ -20,12 +20,21 @@ export async function appendCheckpoint(
   checkpoint: Checkpoint,
 ): Promise<void> {
   const existing = await readCheckpoints(root);
+  const sameState = (item: Checkpoint): boolean =>
+    item.stage === checkpoint.stage &&
+    item.attempt === checkpoint.attempt &&
+    item.status === checkpoint.status &&
+    JSON.stringify(item.inputHashes) ===
+      JSON.stringify(checkpoint.inputHashes) &&
+    JSON.stringify(item.outputHashes) ===
+      JSON.stringify(checkpoint.outputHashes);
+  if (existing.some(sameState)) return;
   const conflict = existing.find(
     (item) =>
       item.stage === checkpoint.stage &&
       item.attempt === checkpoint.attempt &&
-      checkpoint.status !== 'stale' &&
-      JSON.stringify(item) !== JSON.stringify(checkpoint),
+      !(checkpoint.status === 'stale' && item.status === 'approved') &&
+      !sameState(item),
   );
   if (conflict)
     throw new Error(

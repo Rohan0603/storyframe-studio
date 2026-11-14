@@ -58,4 +58,19 @@ describe('offline state', () => {
       }),
     ).rejects.toThrow(/conflicting/i);
   });
+
+  it('does not append duplicate stale transitions on repeated resume', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-idempotent-'));
+    await appendCheckpoint(root, {
+      stage: 'plan',
+      attempt: 1,
+      status: 'approved',
+      inputHashes: { script: 'old' },
+      outputHashes: {},
+      recordedAt: new Date().toISOString(),
+    });
+    await resumeCheckpoints(root, { script: 'new' });
+    await resumeCheckpoints(root, { script: 'new' });
+    await expect(readCheckpoints(root)).resolves.toHaveLength(2);
+  });
 });

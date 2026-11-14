@@ -76,6 +76,49 @@ describe('episode validation', () => {
     expect(result.errors.join('\n')).toMatch(/safe path/i);
   });
 
+  it('rejects unsafe narration and shot image paths', async () => {
+    const { root, episode } = await fixture();
+    episode.narration.audioPath = '../outside.wav';
+    episode.shots = [
+      {
+        id: 'shot-01',
+        beatIds: [],
+        audioStartMs: 0,
+        audioEndMs: 1000,
+        requiredVisualEvent: 'hold',
+        characters: [],
+        props: [],
+        environment: 'room',
+        composition: 'wide',
+        forbidden: [],
+        image: { path: 'C:/outside.png', sha256: null, status: 'pending' },
+        semanticReview: {
+          status: 'pending',
+          reviewedImageSha256: null,
+          notes: '',
+        },
+      },
+    ];
+    const result = await validateEpisode(episode, root);
+    expect(result.errors.join('\n')).toMatch(/narration audio|image path/i);
+  });
+
+  it('rejects manifests missing required arrays and release state', async () => {
+    const { root, episode } = await fixture();
+    const incomplete = {
+      ...episode,
+      beats: undefined,
+      shots: undefined,
+      release: undefined,
+    };
+    const result = await validateEpisode(
+      incomplete as unknown as Episode,
+      root,
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/beats|shots|release/i);
+  });
+
   it('rejects a symlink that escapes the project root', async () => {
     const { root, episode } = await fixture();
     const outside = await mkdtemp(join(tmpdir(), 'storyframe-outside-'));

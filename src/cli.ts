@@ -23,7 +23,16 @@ async function inputHashes(
 ): Promise<Record<string, string>> {
   const script = await readFile(join(root, episode.script.path));
   const refs = await readFile(join(root, episode.referenceBundle.path));
-  return { script: sha256(script), referenceBundle: sha256(refs) };
+  const dependencies = JSON.stringify({
+    narration: episode.narration,
+    beats: episode.beats,
+    shots: episode.shots,
+  });
+  return {
+    script: sha256(script),
+    referenceBundle: sha256(refs),
+    episodeDependencies: sha256(dependencies),
+  };
 }
 
 export async function runCli(args: string[]): Promise<number> {
