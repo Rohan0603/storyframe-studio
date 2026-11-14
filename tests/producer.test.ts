@@ -9,6 +9,7 @@ import {
   assessProducer,
   boundedPolicy,
   recordProducerReview,
+  runAutoProducer,
   stageFingerprint,
   startProducer,
   writeProducerPackage,
@@ -39,6 +40,10 @@ describe('Guided/Auto producer contracts', () => {
     expect(report.stages[0]?.status).toBe('blocked');
     expect(report.nextStage).toBe('research');
     expect(report.readyToPackage).toBe(false);
+    const afterRun = await runAutoProducer(root, episode);
+    expect(afterRun.nextStage).toBe('research');
+    expect(episode.narration.captionsPath).toBeUndefined();
+    expect(episode.production?.render).toBeUndefined();
     await expect(writeProducerPackage(root, episode)).rejects.toThrow(
       /accepted QA/i,
     );
