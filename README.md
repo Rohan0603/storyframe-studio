@@ -91,9 +91,9 @@ The pipeline must check research claims, original narrative value, character and
 
 **Development agents are manually invoked.** A GitHub event, label or issue state never launches one automatically. All external generation and publication permissions are separate.
 
-## Offline foundation
+## Local audio and rendering foundation
 
-The issue #2 foundation provides a no-spend CLI. After installing dependencies, build with `npm run build`, then use `new`, `validate`, `plan`, or `resume` against an episode directory. `render` fails explicitly because media providers and rendering are not implemented in this offline phase.
+The CLI provides a no-spend contract and rendering foundation. After installing dependencies, build with `npm run build`, then use `new`, `validate`, `plan`, `align`, `references`, or `resume` against an episode directory. `render` requires hash-bound narration, verified alignment, approved images and locally available FFmpeg/FFprobe. Gemini TTS dispatch is fail-closed behind exact-transcript, model/quota/charge preflight, local secret handling and durable receipts; no live request is made without those inputs.
 
 ## Story development layer
 

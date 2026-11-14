@@ -85,6 +85,17 @@ export async function validateEpisode(
     errors.push('referenceBundle.sha256 must be a SHA-256');
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
     errors.push('narration.textSha256 must be a SHA-256');
+  if (
+    episode?.narration?.audioSha256 !== undefined &&
+    !HASH.test(episode.narration.audioSha256)
+  )
+    errors.push('narration.audioSha256 must be a SHA-256');
+  if (
+    episode?.narration?.audioDurationMs !== undefined &&
+    (!Number.isInteger(episode.narration.audioDurationMs) ||
+      episode.narration.audioDurationMs <= 0)
+  )
+    errors.push('narration.audioDurationMs must be a positive integer');
   if (episode?.script)
     await verifyFile(
       root,
@@ -185,6 +196,17 @@ export async function validateEpisode(
       } catch (error) {
         errors.push(
           `${label} path is unsafe: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    if (episode.narration.audioSha256) {
+      try {
+        const audio = await resolveContained(root, episode.narration.audioPath);
+        if (sha256(await readFile(audio)) !== episode.narration.audioSha256)
+          errors.push('narration audio hash mismatch');
+      } catch (error) {
+        errors.push(
+          `narration audio is unsafe or unavailable: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }

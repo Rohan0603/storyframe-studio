@@ -25,6 +25,12 @@ export interface Episode {
     audioPath: string;
     alignmentPath: string;
     alignmentVerified: boolean;
+    model?: string;
+    voiceName?: string;
+    audioSha256?: string;
+    audioDurationMs?: number;
+    receiptPath?: string;
+    captionsPath?: string;
   };
   story?: {
     scriptRevision: ScriptRevision;

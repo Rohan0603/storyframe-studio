@@ -8,6 +8,8 @@ export function assertSafeRelativePath(
   if (
     typeof value !== 'string' ||
     value.length === 0 ||
+    value.includes('\r') ||
+    value.includes('\n') ||
     value.includes('\\') ||
     isAbsolute(value) ||
     value.split('/').some((part) => part === '..' || part === '')

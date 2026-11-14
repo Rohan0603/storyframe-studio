@@ -1,0 +1,98 @@
+import { createHash } from 'node:crypto';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { renderStillEpisode } from '../src/render.js';
+import type { Episode } from '../src/types.js';
+
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+const hash = (value: Uint8Array | string) =>
+  createHash('sha256').update(value).digest('hex');
+
+describe('FFmpeg still renderer', () => {
+  it('renders an HD MP4 and verifies its streams without overwriting output', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-render-'));
+    const imagePath = join(root, 'shot.png');
+    const audioPath = join(root, 'narration.wav');
+    await writeFile(imagePath, png);
+    const audio = Buffer.alloc(16_044);
+    audio.write('RIFF', 0, 'ascii');
+    audio.writeUInt32LE(16_036, 4);
+    audio.write('WAVEfmt ', 8, 'ascii');
+    audio.writeUInt32LE(16, 16);
+    audio.writeUInt16LE(1, 20);
+    audio.writeUInt16LE(1, 22);
+    audio.writeUInt32LE(8000, 24);
+    audio.writeUInt32LE(16000, 28);
+    audio.writeUInt16LE(2, 32);
+    audio.writeUInt16LE(16, 34);
+    audio.write('data', 36, 'ascii');
+    audio.writeUInt32LE(16_000, 40);
+    await writeFile(audioPath, audio);
+    const episode: Episode = {
+      schemaVersion: 1,
+      episodeId: 'episode-01',
+      mode: 'guided',
+      script: { path: 'script.md', sha256: hash('A.'), approved: true },
+      referenceBundle: { path: 'bundle.json', sha256: hash('{}') },
+      narration: {
+        provider: 'gemini-tts',
+        textSha256: hash('A.'),
+        audioPath: 'narration.wav',
+        alignmentPath: 'alignment.json',
+        alignmentVerified: true,
+        audioSha256: hash(audio),
+        audioDurationMs: 1000,
+      },
+      alignment: {
+        scriptRevisionId: 'script-revision-01',
+        scriptSha256: hash('A.'),
+        timingStatus: 'verified',
+        audioDurationMs: 1000,
+        density: { style: 'cinematic', targetMin: 1, targetMax: 2 },
+      },
+      beats: [],
+      shots: [
+        {
+          id: 'shot-01',
+          beatIds: [],
+          audioStartMs: 0,
+          audioEndMs: 1000,
+          requiredVisualEvent: 'A.',
+          characters: [],
+          props: [],
+          environment: 'room',
+          composition: 'wide',
+          forbidden: [],
+          image: { path: 'shot.png', sha256: hash(png), status: 'approved' },
+          semanticReview: {
+            status: 'pass',
+            reviewedImageSha256: hash(png),
+            notes: '',
+            pixelsDecoded: true,
+          },
+        },
+      ],
+      release: {
+        productionQAPassed: false,
+        creativeApproval: null,
+        publishAuthorization: null,
+      },
+    };
+    await writeFile(join(root, 'script.md'), 'A.');
+    await writeFile(join(root, 'bundle.json'), '{}');
+    const result = await renderStillEpisode(root, episode, {
+      outputPath: 'video.mp4',
+    });
+    expect(result.width).toBe(1920);
+    expect(result.height).toBe(1080);
+    expect(result.videoCodec).toBe('h264');
+    await expect(
+      renderStillEpisode(root, episode, { outputPath: 'video.mp4' }),
+    ).rejects.toThrow(/exists|overwrite/i);
+  });
+});

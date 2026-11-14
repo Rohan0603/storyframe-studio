@@ -13,6 +13,7 @@ import { resolveContained } from './paths.js';
 import type { Episode } from './types.js';
 import { densityNote, storyboardMarkdown } from './alignment.js';
 import { recordImagePreflight } from './image-generation.js';
+import { renderStillEpisode } from './render.js';
 
 async function load(root: string): Promise<Episode> {
   return JSON.parse(
@@ -58,10 +59,6 @@ export async function runCli(args: string[]): Promise<number> {
     await createEpisode(root, episodeId);
     return 0;
   }
-  if (command === 'render')
-    throw new Error(
-      'render is not implemented in the offline foundation; no provider or media call was made',
-    );
   if (command === 'image-preflight') {
     const result = await recordImagePreflight(root, {
       nativeToolAvailable: false,
@@ -125,6 +122,12 @@ export async function runCli(args: string[]): Promise<number> {
       outputHashes: { freezeSha256: episode.referenceBible.freezeSha256 },
       recordedAt: new Date().toISOString(),
     });
+    return 0;
+  }
+  if (command === 'render') {
+    if (!episode.narration.alignmentVerified)
+      throw new Error('render requires verified narration alignment');
+    await renderStillEpisode(root, episode);
     return 0;
   }
   if (command === 'resume') {
