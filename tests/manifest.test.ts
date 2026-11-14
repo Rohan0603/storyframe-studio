@@ -150,6 +150,23 @@ describe('episode validation', () => {
     );
   });
 
+  it('rejects out-of-bounds beats and malformed release state', async () => {
+    const { root, episode } = await fixture();
+    episode.beats = [
+      {
+        id: 'beat-01',
+        spokenText: '',
+        scriptStartChar: 999,
+        scriptEndChar: 999,
+        sourceClaimIds: [],
+      },
+    ];
+    episode.release = {} as never;
+    const result = await validateEpisode(episode, root);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/script span|release/);
+  });
+
   it('rejects a symlink that escapes the project root', async () => {
     const { root, episode } = await fixture();
     const outside = await mkdtemp(join(tmpdir(), 'storyframe-outside-'));

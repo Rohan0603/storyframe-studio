@@ -55,8 +55,21 @@ export async function validateEpisode(
   if (!Array.isArray(episode.shots)) errors.push('shots must be an array');
   if (!episode.narration || typeof episode.narration !== 'object')
     errors.push('narration is required');
-  if (!episode.release || typeof episode.release !== 'object')
-    errors.push('release is required');
+  if (
+    !episode.release ||
+    typeof episode.release !== 'object' ||
+    Array.isArray(episode.release) ||
+    typeof episode.release.productionQAPassed !== 'boolean' ||
+    !(
+      episode.release.creativeApproval === null ||
+      typeof episode.release.creativeApproval === 'string'
+    ) ||
+    !(
+      episode.release.publishAuthorization === null ||
+      typeof episode.release.publishAuthorization === 'string'
+    )
+  )
+    errors.push('release is required and has an invalid shape');
   if (episode?.schemaVersion !== 1)
     errors.push('unsupported schemaVersion; expected 1');
   const ids = new Set<string>();
@@ -178,6 +191,12 @@ export async function validateEpisode(
         beat.spokenText
     )
       errors.push(`spoken text mismatch for beat ${beat.id}`);
+    if (
+      scriptText !== null &&
+      (beat.scriptEndChar > scriptText.length ||
+        beat.scriptStartChar > scriptText.length)
+    )
+      errors.push(`invalid script span for beat ${beat.id}`);
     if (episode?.story)
       for (const claimId of beat.sourceClaimIds ?? [])
         if (!episode.story.sourceClaims.some((claim) => claim.id === claimId))
