@@ -6,6 +6,18 @@ StoryFrame Studio is a planned local-first system that turns a topic or original
 
 > **Project status: foundation/specification.** This repository is not yet an implemented end-to-end production tool. All referenced stages and commands below are design targets unless explicitly labeled implemented.
 
+## Guided/Auto producer (Issue #8)
+
+The optional `producer` CLI coordinates the existing story → shot → image →
+voice → caption → MP4 pipeline with explicit stage evidence, bounded run
+limits, stale-hash invalidation, final audiovisual QA, and a nonpublishing
+YouTube metadata package. Guided mode requires reviewer approvals at each
+stage. Auto can accept only already-verified routine work; it **does not**
+unattendedly invoke Codex Desktop `image_gen`, spend Gemini quota, or publish.
+
+See [producer operation and safety gates](docs/producer.md). A status report
+is **not** proof that a live episode has just been generated.
+
 ## The non-negotiable rule
 
 **Every final image must depict the specific narration beat that plays with it.** Beautiful but unrelated artwork is a failed shot, not acceptable filler. A valid FFmpeg export is not proof of narrative quality.
