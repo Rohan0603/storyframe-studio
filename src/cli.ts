@@ -53,7 +53,7 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|plan|align|references|validate|resume|image-preflight|render> <episode-root> [episode-id]',
+      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|render> <episode-root> [episode-id] [provider]',
     );
   if (command === 'new') {
     await createEpisode(root, episodeId);
@@ -70,6 +70,34 @@ export async function runCli(args: string[]): Promise<number> {
     throw new Error(
       `image-preflight ${result.status.toUpperCase()}: ${result.reason}`,
     );
+  }
+  if (command === 'select-provider') {
+    const provider = args[3];
+    if (provider !== 'gemini-tts' && provider !== 'kokoro-onnx')
+      throw new Error('provider must be gemini-tts or kokoro-onnx');
+    const episode = await load(root);
+    const validation = await validateEpisode(episode, root);
+    if (!validation.valid)
+      throw new Error(
+        `episode validation failed:\n${validation.errors.join('\n')}`,
+      );
+    episode.narration.provider = provider;
+    episode.narration.alignmentVerified = false;
+    delete episode.narration.audioSha256;
+    delete episode.narration.audioDurationMs;
+    delete episode.narration.receiptPath;
+    delete episode.narration.captionsPath;
+    episode.release.productionQAPassed = false;
+    if (episode.alignment) {
+      episode.alignment.timingStatus = 'provisional';
+      episode.alignment.audioDurationMs = null;
+    }
+    await writeFile(
+      join(root, 'episode.json'),
+      JSON.stringify(episode, null, 2) + '\n',
+      'utf8',
+    );
+    return 0;
   }
   const episode = await load(root);
   const validation = await validateEpisode(episode, root);

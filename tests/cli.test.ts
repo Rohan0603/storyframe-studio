@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -28,5 +28,37 @@ describe('CLI', () => {
     await expect(runCli(['image-preflight', root])).rejects.toThrow(
       /image-preflight BLOCKED.*unavailable/i,
     );
+  });
+
+  it('invalidates downstream narration metadata when selecting a provider', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-cli-provider-'));
+    await runCli(['new', root, 'episode-01']);
+    const episode = JSON.parse(
+      await readFile(join(root, 'episode.json'), 'utf8'),
+    );
+    episode.narration.alignmentVerified = true;
+    episode.narration.audioDurationMs = 10_628;
+    episode.narration.receiptPath = 'receipts/old.json';
+    episode.narration.captionsPath = 'audio/old.srt';
+    episode.alignment.timingStatus = 'verified';
+    episode.alignment.audioDurationMs = 10_628;
+    episode.release.productionQAPassed = true;
+    await writeFile(
+      join(root, 'episode.json'),
+      JSON.stringify(episode, null, 2),
+    );
+
+    await expect(
+      runCli(['select-provider', root, 'episode-01', 'kokoro-onnx']),
+    ).resolves.toBe(0);
+    const updated = JSON.parse(
+      await readFile(join(root, 'episode.json'), 'utf8'),
+    );
+    expect(updated.narration.provider).toBe('kokoro-onnx');
+    expect(updated.narration.alignmentVerified).toBe(false);
+    expect(updated.narration.audioDurationMs).toBeUndefined();
+    expect(updated.narration.receiptPath).toBeUndefined();
+    expect(updated.narration.captionsPath).toBeUndefined();
+    expect(updated.release.productionQAPassed).toBe(false);
   });
 });

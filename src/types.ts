@@ -11,6 +11,10 @@ export type StageStatus =
   | 'failed'
   | 'stale';
 export type EpisodeMode = 'guided' | 'auto';
+export type NarrationProvider =
+  | 'offline-fixture'
+  | 'gemini-tts'
+  | 'kokoro-onnx';
 
 export interface Episode {
   schemaVersion: 1;
@@ -20,7 +24,7 @@ export interface Episode {
   referenceBundle: { path: string; sha256: string };
   referenceBible?: ReferenceBibleManifest;
   narration: {
-    provider: string;
+    provider: NarrationProvider;
     textSha256: string;
     audioPath: string;
     alignmentPath: string;

@@ -4,7 +4,7 @@
 
 Build an original narration-first production pipeline, not a slideshow generator. **Audio/story meaning determines the shot plan; approved visual evidence determines whether a shot can appear in the video.**
 
-The system consists of a local Node.js/TypeScript orchestration layer, pure stage contracts, filesystem storage, Codex Desktop image generation, Gemini expressive TTS, FFmpeg/FFprobe and selective third-party Story Skills integration.
+The system consists of a local Node.js/TypeScript orchestration layer, pure stage contracts, filesystem storage, Codex Desktop image generation, selectable Gemini expressive TTS or local Kokoro ONNX narration, FFmpeg/FFprobe and selective third-party Story Skills integration.
 
 No Boords, Flow or reused legacy runtime dependency.
 
@@ -26,6 +26,7 @@ Topic -> Research -> Story Skills adapter -> script.md + source ledger
                        |                             |
                        v                             v
              Codex Desktop image_gen         Gemini expressive TTS
+                                               or local Kokoro ONNX
                        |                             |
                        v                             v
              Saved actual image bytes        WAV + measured alignment
@@ -87,13 +88,15 @@ only decodable PNG pixels with dimensions and SHA-256. A shot cannot pass visual
 QA without independent actual-pixel evidence bound to the exact image hash and
 frozen references.
 
-### Voice provider: Gemini TTS
+### Voice providers: Gemini TTS or local Kokoro ONNX
 
-- Resolve the live available expressive TTS model rather than hard-coding a promise of availability.
+- The episode selects exactly one narration provider: `gemini-tts` or `kokoro-onnx`.
+- For Gemini, resolve the live available expressive TTS model rather than hard-coding a promise of availability.
+- For Kokoro, run the configured local ONNX model and voice through the CPU Python bridge; no network or paid provider call is permitted.
 - Stable speaker-to-voice mapping. Generate script-exact segments with explicit delivery metadata.
 - Save verbatim request transcript, audio file hash, receipt and verified duration.
-- Segment/word-level alignment for shot timing and captions; manual verified alignment allowed. Never use an unlabeled timing guess for production QA.
-- No external call until quota, account authorization and possible charges are understood.
+- Segment/word-level alignment for shot timing and captions; Kokoro `create_timed` phoneme timings may be grouped to words and manually checked. Never use an unlabeled timing guess for production QA.
+- Gemini has no external call until quota, account authorization and possible charges are understood.
 
 ### Media engine
 
@@ -102,6 +105,7 @@ FFmpeg renders still frames with optional subtle non-generative holds, pans/zoom
 ### QA / release engine
 
 Four separate results:
+
 1. deterministic validation of manifest references/hashes/coverage/order/timings;
 2. **semantic visual audit of actual pixels versus narration intent**, with findings and revisions;
 3. full-video audio/visual/subtitle quality review;
@@ -117,7 +121,7 @@ Data policy: commit only reusable code, templates, documentation and sanitized t
 
 ## Failure/resume and mode behavior
 
-- A task is idempotent in the **local state machine**, but upstream provider requests are *not* presumed idempotent or free.
+- A task is idempotent in the **local state machine**, but upstream provider requests are _not_ presumed idempotent or free.
 - Record each dispatch before attempting a billable call; ambiguous outcome is `unknown` and needs reconciliation.
 - Resume without overwriting approved assets. Retry only chosen failed shots and retain rejected candidates for diagnosis.
 - Guided mode pauses for review at each creative checkpoint. Auto mode can make ordinary creative choices within an explicit prior budget/permission envelope, but never bypass unavailable tool, rights, risk or publish gates.

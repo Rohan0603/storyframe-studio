@@ -77,6 +77,8 @@ The distinction between a narration **beat** and a visual **shot** is mandatory:
 }
 ```
 
+`narration.provider` may be `gemini-tts` or `kokoro-onnx`. Changing the selected provider invalidates the existing audio hash, alignment, captions and derived render until they are regenerated from the newly selected audio.
+
 The strings marked `PLACEHOLDER` are not valid actual SHA-256 values and are included **solely** to illustrate the target shape.
 
 ## Validation rules
@@ -93,10 +95,10 @@ The strings marked `PLACEHOLDER` are not valid actual SHA-256 values and are inc
 10. No unreviewed or unrelated image may be substituted to meet the stills/minute target.
 
 11. Generated stills carry `codex-desktop.image_gen` provenance, packet hash,
-attempt/receipt identity and decoded dimensions. `semanticReview.status = pass`
-also requires `pixelsDecoded: true`, non-empty independent notes and an exact
-reviewed image SHA. Unknown quota, charge, output persistence, decode or pixel
-review state blocks acceptance.
+    attempt/receipt identity and decoded dimensions. `semanticReview.status = pass`
+    also requires `pixelsDecoded: true`, non-empty independent notes and an exact
+    reviewed image SHA. Unknown quota, charge, output persistence, decode or pixel
+    review state blocks acceptance.
 
 ## Planning density
 

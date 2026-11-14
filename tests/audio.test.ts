@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import {
   createSrt,
   retimeShotsFromAlignment,
   synthesizeGeminiTts,
+  synthesizeKokoroTts,
   type AudioAlignment,
 } from '../src/audio.js';
 import type { Shot } from '../src/types.js';
@@ -15,6 +16,70 @@ const hash = (value: string | Uint8Array) =>
   createHash('sha256').update(value).digest('hex');
 
 describe('Gemini TTS and verified captions', () => {
+  it('persists Kokoro create_timed evidence and maps phoneme runs to exact words', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-kokoro-'));
+    const wav = Buffer.alloc(24_000 * 2);
+    wav.write('RIFF', 0, 'ascii');
+    wav.writeUInt32LE(wav.length - 8, 4);
+    wav.write('WAVEfmt ', 8, 'ascii');
+    wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20);
+    wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(24_000, 24);
+    wav.writeUInt32LE(48_000, 28);
+    wav.writeUInt16LE(2, 32);
+    wav.writeUInt16LE(16, 34);
+    wav.write('data', 36, 'ascii');
+    wav.writeUInt32LE(wav.length - 44, 40);
+    await writeFile(join(root, 'fixture.wav'), wav);
+    const pythonModules = join(root, 'python-modules');
+    await mkdir(pythonModules);
+    await writeFile(
+      join(pythonModules, 'kokoro_onnx.py'),
+      `
+class Timing:
+    def __init__(self, phoneme, start, end):
+        self.phoneme, self.start, self.end = phoneme, start, end
+class Kokoro:
+    has_timings = True
+    def __init__(self, model, voices): pass
+    def create_timed(self, text, voice, speed, lang):
+        return [0.0] * 24000, 24000, [
+            Timing('ð', 0, .1), Timing('ə', .1, .2), Timing(' ', .2, .2),
+            Timing('b', .3, .4), Timing('l', .4, .5), Timing('uː', .5, .6)]
+`,
+    );
+    await writeFile(
+      join(pythonModules, 'soundfile.py'),
+      `
+import shutil
+def write(path, samples, sample_rate, subtype):
+    shutil.copyfile(${JSON.stringify(join(root, 'fixture.wav'))}, path)
+`,
+    );
+    const result = await synthesizeKokoroTts(root, {
+      approvedText: 'The blue',
+      transcript: 'The blue',
+      pythonExecutable: 'python',
+      modelPath: 'model.onnx',
+      voicesPath: 'voices.bin',
+      voice: 'af_heart',
+      environment: { PYTHONPATH: pythonModules },
+    });
+    expect(result.alignment?.words).toEqual([
+      { word: 'the', startMs: 0, endMs: 200 },
+      { word: 'blue', startMs: 300, endMs: 600 },
+    ]);
+    expect(result.alignmentPath).toBe('audio/alignment.json');
+    expect(
+      JSON.parse(
+        await readFile(
+          join(root, 'receipts', `tts-${result.requestId}.json`),
+          'utf8',
+        ),
+      ).provider,
+    ).toBe('kokoro-onnx');
+  });
   it('rejects a transcript that differs from the approved words', async () => {
     const root = await mkdtemp(join(tmpdir(), 'storyframe-audio-'));
     await expect(
@@ -213,5 +278,48 @@ describe('Gemini TTS and verified captions', () => {
     });
     expect(result.audioSha256).toBe(hash(wav));
     await expect(readFile(join(root, result.audioPath))).resolves.toEqual(wav);
+  });
+
+  it('normalizes Gemini PCM l16 output into a persisted WAV', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-audio-l16-'));
+    const pcm = Buffer.alloc(4800);
+    const result = await synthesizeGeminiTts(root, {
+      approvedText: 'The traveler opens the chest.',
+      transcript: 'The traveler opens the chest.',
+      voiceName: 'Kore',
+      model: 'gemini-3.1-flash-tts-preview',
+      apiKey: 'test-only',
+      chargeAuthorization: 'free',
+      preflight: {
+        modelAvailable: true,
+        quotaState: 'available' as const,
+        chargeState: 'free' as const,
+      },
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType: 'audio/l16; rate=24000; channels=1',
+                        data: pcm.toString('base64'),
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    });
+    const persisted = await readFile(join(root, result.audioPath));
+    expect(persisted.subarray(0, 4).toString()).toBe('RIFF');
+    expect(persisted.readUInt32LE(24)).toBe(24000);
+    expect(result.mimeType).toBe('audio/wav');
+    expect(result.durationMs).toBe(100);
   });
 });

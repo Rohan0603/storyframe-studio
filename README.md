@@ -2,7 +2,7 @@
 
 **Narration-first, research-backed still-image video production for YouTube.**
 
-StoryFrame Studio is a planned local-first system that turns a topic or original story into a visually coherent, narration-driven video. It uses selected [Story Skills](https://github.com/danjdewhurst/story-skills) capabilities for writing and continuity, **Codex Desktop's built-in `image_gen`** for still images, **Google Gemini expressive TTS** for narration, and **FFmpeg** for final assembly.
+StoryFrame Studio is a planned local-first system that turns a topic or original story into a visually coherent, narration-driven video. It uses selected [Story Skills](https://github.com/danjdewhurst/story-skills) capabilities for writing and continuity, **Codex Desktop's built-in `image_gen`** for still images, selectable **Google Gemini expressive TTS or local Kokoro ONNX** for narration, and **FFmpeg** for final assembly.
 
 > **Project status: foundation/specification.** This repository is not yet an implemented end-to-end production tool. All referenced stages and commands below are design targets unless explicitly labeled implemented.
 
@@ -20,7 +20,7 @@ Topic / premise
   -> character / prop / location reference bible
   -> Codex image_gen stills tied to shot requirements
   -> pixel-based visual / continuity review
-  -> Gemini expressive narration + measured audio alignment
+  -> selected Gemini or local Kokoro narration + measured audio alignment
   -> time-accurate captions
   -> FFmpeg MP4 + SRT
   -> audiovisual and YouTube-readiness review
@@ -47,7 +47,7 @@ The **cinematic** default _planning target_ is **14–18 distinct stills per min
 
 - **Writing:** selectively reuse upstream Story Skills via a pinned, license-compliant integration; do not load all its skills into every prompt.
 - **Images:** the intended primary tool is the **built-in `image_gen` available inside Codex Desktop**, not a shell command, Flow, Boords, or an OpenAI API key. Its exact invocation, ability to accept reference images, return downloadable files and operate unattended must be verified in the installed client before claiming automation. Codex/ChatGPT metering must be checked against current account usage, not inferred from a past test.
-- **Audio:** Gemini expressive TTS, subject to live model/access/billing verification and explicit authorization; no embedded credentials.
+- **Audio:** choose Gemini expressive TTS with live model/access/billing verification and explicit authorization, or local Kokoro ONNX CPU inference; no embedded credentials.
 - **Video:** local FFmpeg/FFprobe, still images only, plus narration/captions and optional rights-cleared sound.
 - **State:** Markdown for human-readable creative records; a versioned `episode.json` as the canonical episode-production contract. No Boords dependency.
 
@@ -94,6 +94,8 @@ The pipeline must check research claims, original narrative value, character and
 ## Local audio and rendering foundation
 
 The CLI provides a no-spend contract and rendering foundation. After installing dependencies, build with `npm run build`, then use `new`, `validate`, `plan`, `align`, `references`, or `resume` against an episode directory. `render` requires hash-bound narration, verified alignment, approved images and locally available FFmpeg/FFprobe. Gemini TTS dispatch is fail-closed behind exact-transcript, model/quota/charge preflight, local secret handling and durable receipts; no live request is made without those inputs.
+
+Narration can be selected per episode with `storyframe select-provider <episode-root> <episode-id> gemini-tts` or `storyframe select-provider <episode-root> <episode-id> kokoro-onnx`. Kokoro runs locally through the configured `kokoro-onnx` Python environment and never contacts a paid provider. Changing providers invalidates the episode's prior alignment so captions and rendering must be regenerated from the selected audio.
 
 ## Story development layer
 
