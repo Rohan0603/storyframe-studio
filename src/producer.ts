@@ -615,6 +615,7 @@ export async function runAutoProducer(
     report.stages.find((step) => step.stage === 'narration')?.status === 'approved'
   ) {
     await generateProducerCaptions(root, episode);
+    await saveProducerEpisode(root, episode);
     report = await assessProducer(root, episode);
   }
   if (
@@ -622,6 +623,7 @@ export async function runAutoProducer(
     report.stages.find((step) => step.stage === 'captions')?.status === 'approved'
   ) {
     await generateProducerRender(root, episode);
+    await saveProducerEpisode(root, episode);
     report = await assessProducer(root, episode);
   }
   return report;
