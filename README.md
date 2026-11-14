@@ -28,20 +28,20 @@ Topic / premise
 
 ## Two production modes
 
-| | Guided | Auto |
-| --- | --- | --- |
-| Story decisions | User reviews each creative stage | Agent makes routine decisions |
-| Script and references | Explicit creative approval | Preauthorized policy, auditable evidence |
-| Images | Shot-by-shot or batch review | Bounded generation + independent image inspection |
-| Revisions | User chooses corrections | Retry only failed shots within limits |
-| Provider spending | Per-batch authorization | Explicit upfront budget/capability authorization |
-| YouTube publication | Separate owner approval | **Not automatic** in initial releases |
+|                       | Guided                           | Auto                                              |
+| --------------------- | -------------------------------- | ------------------------------------------------- |
+| Story decisions       | User reviews each creative stage | Agent makes routine decisions                     |
+| Script and references | Explicit creative approval       | Preauthorized policy, auditable evidence          |
+| Images                | Shot-by-shot or batch review     | Bounded generation + independent image inspection |
+| Revisions             | User chooses corrections         | Retry only failed shots within limits             |
+| Provider spending     | Per-batch authorization          | Explicit upfront budget/capability authorization  |
+| YouTube publication   | Separate owner approval          | **Not automatic** in initial releases             |
 
-An automatic *production run* is not permission to automatically dispatch development agents or purchase more quota.
+An automatic _production run_ is not permission to automatically dispatch development agents or purchase more quota.
 
 ## Visual impact: enough stills, but never random padding
 
-The **cinematic** default *planning target* is **14–18 distinct stills per minute** (an eight-minute video may plan roughly 112–144 frames). Reflection-heavy sections may use fewer, action-heavy sections more. These are **planning heuristics, not guaranteed or mandatory counts**. Shot count follows meaningful narration/action beats, pacing and image-generation budget. A selected shot may be held for an intentional duration; no generic filler is allowed. Freeze the shot plan before full image generation and re-time it to accepted audio.
+The **cinematic** default _planning target_ is **14–18 distinct stills per minute** (an eight-minute video may plan roughly 112–144 frames). Reflection-heavy sections may use fewer, action-heavy sections more. These are **planning heuristics, not guaranteed or mandatory counts**. Shot count follows meaningful narration/action beats, pacing and image-generation budget. A selected shot may be held for an intentional duration; no generic filler is allowed. Freeze the shot plan before full image generation and re-time it to accepted audio.
 
 ## Providers and boundaries
 
@@ -102,3 +102,14 @@ validators. See [the integration contract](docs/story-skills-integration.md).
 The optional `episode.story` section preserves normalized script revisions,
 stable speaker IDs, source claims, continuity canon, and exact beat candidates
 for future beat-to-shot alignment; it does not generate images or audio.
+
+## Frozen visual reference bible
+
+Issue #5 adds an explicit `referenceBible` contract for approved character,
+prop, environment and style references. The story canon remains textual
+continuity data; an approved visual reference is proven only by reading the
+actual local image bytes, checking a supported image signature, and matching
+its SHA-256. Freeze hashes bind those files to the story revision and canon.
+Changed, missing, unsafe or drifted references fail closed and invalidate
+dependent shot bindings. The offline `references` CLI command records this
+verification without contacting an image provider.

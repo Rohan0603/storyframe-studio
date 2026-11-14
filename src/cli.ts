@@ -29,6 +29,9 @@ async function inputHashes(
   const refs = await readFile(
     await resolveContained(root, episode.referenceBundle.path),
   );
+  const referenceBible = episode.referenceBible
+    ? await readFile(await resolveContained(root, episode.referenceBible.path))
+    : '';
   const dependencies = JSON.stringify({
     narration: episode.narration,
     alignment: episode.alignment,
@@ -39,6 +42,7 @@ async function inputHashes(
   return {
     script: sha256(script),
     referenceBundle: sha256(refs),
+    referenceBible: sha256(referenceBible),
     episodeDependencies: sha256(dependencies),
   };
 }
@@ -47,7 +51,7 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|plan|align|validate|resume|render> <episode-root> [episode-id]',
+      'usage: storyframe <new|plan|align|references|validate|resume|render> <episode-root> [episode-id]',
     );
   if (command === 'new') {
     await createEpisode(root, episodeId);
@@ -85,6 +89,29 @@ export async function runCli(args: string[]): Promise<number> {
       status: 'approved',
       inputHashes: hashes,
       outputHashes: {},
+      recordedAt: new Date().toISOString(),
+    });
+    return 0;
+  }
+  if (command === 'references') {
+    if (!episode.referenceBible)
+      throw new Error('reference bible is required for references validation');
+    if (episode.referenceBible.status !== 'frozen')
+      throw new Error('reference bible must be frozen before approval');
+    const existing = await readCheckpoints(root);
+    const attempt =
+      Math.max(
+        0,
+        ...existing
+          .filter((checkpoint) => checkpoint.stage === 'references')
+          .map((checkpoint) => checkpoint.attempt),
+      ) + 1;
+    await appendCheckpoint(root, {
+      stage: 'references',
+      attempt,
+      status: 'approved',
+      inputHashes: hashes,
+      outputHashes: { freezeSha256: episode.referenceBible.freezeSha256 },
       recordedAt: new Date().toISOString(),
     });
     return 0;

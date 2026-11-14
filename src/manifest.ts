@@ -9,6 +9,7 @@ import {
 } from './story-layer.js';
 import type { Episode, ValidationResult } from './types.js';
 import { validateAlignment } from './alignment.js';
+import { canonHash, validateReferenceBible } from './reference-bible.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 export const sha256 = (bytes: Uint8Array | string): string =>
@@ -109,6 +110,70 @@ export async function validateEpisode(
       'reference bundle',
       errors,
     );
+  let loadedReferenceBible: Awaited<
+    ReturnType<typeof validateReferenceBible>
+  > | null = null;
+  let referenceIds = new Set<string>();
+  let referenceHashes = new Map<string, string>();
+  if (episode?.referenceBible) {
+    try {
+      const biblePath = await resolveContained(
+        root,
+        episode.referenceBible.path,
+      );
+      const bibleBytes = await readFile(biblePath);
+      if (sha256(bibleBytes) !== episode.referenceBible.sha256)
+        errors.push('reference bible manifest hash mismatch');
+      const parsed = JSON.parse(bibleBytes.toString('utf8')) as Parameters<
+        typeof validateReferenceBible
+      >[1];
+      const expected = episode.story
+        ? {
+            storyRevisionId: episode.story.scriptRevision.id,
+            storyRevisionSha256: episode.story.scriptRevision.textSha256,
+            canonSha256: canonHash(episode.story.canon),
+            canon: episode.story.canon,
+          }
+        : {};
+      loadedReferenceBible = await validateReferenceBible(
+        root,
+        parsed,
+        expected,
+      );
+      errors.push(...loadedReferenceBible.errors);
+      if (
+        loadedReferenceBible.freezeSha256 !==
+        episode.referenceBible.freezeSha256
+      )
+        errors.push('reference bible freeze hash mismatch');
+      if (episode.referenceBible.status === 'stale')
+        errors.push('reference bible is explicitly stale');
+      if (
+        episode.referenceBible.storyRevisionId !== parsed.storyRevisionId ||
+        episode.referenceBible.storyRevisionSha256 !==
+          parsed.storyRevisionSha256 ||
+        episode.referenceBible.canonSha256 !== parsed.canonSha256
+      )
+        errors.push(
+          'reference bible manifest binding does not match its bundle',
+        );
+      referenceIds = new Set(parsed.entries.map((entry) => entry.id));
+      referenceHashes = new Map(
+        parsed.entries.map((entry) => [entry.id, entry.image.sha256]),
+      );
+      if (
+        episode.referenceBible.status === 'frozen' &&
+        !loadedReferenceBible.valid
+      )
+        errors.push('frozen reference bible is invalid');
+    } catch (error) {
+      errors.push(
+        `reference bible is unsafe or unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  } else if (episode.shots?.some((shot) => shot.referenceBinding)) {
+    errors.push('shot reference bindings require a reference bible');
+  }
   if (episode?.narration) {
     for (const [label, path] of [
       ['narration audio', episode.narration.audioPath],
@@ -278,6 +343,62 @@ export async function validateEpisode(
       for (const id of Array.isArray(shot.props) ? shot.props : [])
         if (!props.has(id))
           errors.push(`shot ${shot.id} references unknown prop ${id}`);
+    }
+    if (shot.referenceBinding) {
+      const binding = shot.referenceBinding;
+      if (
+        !Array.isArray(binding.referenceIds) ||
+        binding.referenceIds.length === 0 ||
+        !binding.referenceHashes ||
+        typeof binding.referenceHashes !== 'object'
+      )
+        errors.push(`shot ${shot.id} has an invalid reference binding`);
+      if (
+        !Array.isArray(binding.referenceIds) ||
+        binding.referenceIds.length === 0 ||
+        !binding.referenceHashes ||
+        typeof binding.referenceHashes !== 'object'
+      )
+        errors.push(`shot ${shot.id} has an invalid reference binding`);
+      if (
+        !loadedReferenceBible ||
+        loadedReferenceBible.freezeSha256 !== binding.freezeSha256
+      )
+        errors.push(`shot ${shot.id} has a stale reference freeze hash`);
+      if (
+        episode.story &&
+        binding.storyRevisionId !== episode.story.scriptRevision.id
+      )
+        errors.push(`shot ${shot.id} has a stale reference story revision`);
+      for (const id of binding.referenceIds ?? []) {
+        if (!referenceIds.has(id))
+          errors.push(
+            `shot ${shot.id} references unknown visual reference ${id}`,
+          );
+        if (binding.referenceHashes?.[id] !== referenceHashes.get(id))
+          errors.push(
+            `shot ${shot.id} has a stale visual reference hash for ${id}`,
+          );
+      }
+      if (
+        shot.semanticReview.status === 'pass' &&
+        errors.some((error) => error.includes(`shot ${shot.id} has a stale`))
+      )
+        errors.push(`approved visual review is stale for ${shot.id}`);
+      if (loadedReferenceBible?.valid) {
+        for (const required of [
+          ...shot.characters,
+          ...shot.props,
+          shot.environment,
+        ]) {
+          if (!binding.referenceIds.includes(required))
+            errors.push(
+              `shot ${shot.id} is missing required visual reference ${required}`,
+            );
+        }
+      }
+    } else if (episode.referenceBible?.status === 'frozen') {
+      errors.push(`shot ${shot.id} is missing a frozen reference binding`);
     }
   }
   if (episode.alignment !== undefined) {
