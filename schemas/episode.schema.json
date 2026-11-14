@@ -33,6 +33,7 @@
         "alignmentVerified"
       ]
     },
+    "story": { "$ref": "#/$defs/story" },
     "beats": { "type": "array" },
     "shots": { "type": "array" },
     "release": {
@@ -51,6 +52,22 @@
       "properties": {
         "path": { "type": "string" },
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "story": {
+      "type": "object",
+      "required": ["scriptRevision", "sourceClaims", "canon", "beatCandidates"],
+      "properties": {
+        "scriptRevision": {
+          "type": "object",
+          "required": ["id", "text", "textSha256", "segments"]
+        },
+        "sourceClaims": { "type": "array" },
+        "canon": {
+          "type": "object",
+          "required": ["characters", "props", "observations"]
+        },
+        "beatCandidates": { "type": "array" }
       }
     }
   }

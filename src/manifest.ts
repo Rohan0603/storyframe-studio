@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolveContained } from './paths.js';
 import { isStableId } from './ids.js';
+import {
+  validateCanon,
+  validateClaimLedger,
+  validateScriptRevision,
+} from './story-layer.js';
 import type { Episode, ValidationResult } from './types.js';
 
 const HASH = /^[a-f0-9]{64}$/;
@@ -43,14 +48,28 @@ export async function validateEpisode(
   root: string,
 ): Promise<ValidationResult> {
   const errors: string[] = [];
+  let scriptText: string | null = null;
   if (!episode || typeof episode !== 'object')
     return { valid: false, errors: ['episode must be an object'] };
   if (!Array.isArray(episode.beats)) errors.push('beats must be an array');
   if (!Array.isArray(episode.shots)) errors.push('shots must be an array');
   if (!episode.narration || typeof episode.narration !== 'object')
     errors.push('narration is required');
-  if (!episode.release || typeof episode.release !== 'object')
-    errors.push('release is required');
+  if (
+    !episode.release ||
+    typeof episode.release !== 'object' ||
+    Array.isArray(episode.release) ||
+    typeof episode.release.productionQAPassed !== 'boolean' ||
+    !(
+      episode.release.creativeApproval === null ||
+      typeof episode.release.creativeApproval === 'string'
+    ) ||
+    !(
+      episode.release.publishAuthorization === null ||
+      typeof episode.release.publishAuthorization === 'string'
+    )
+  )
+    errors.push('release is required and has an invalid shape');
   if (episode?.schemaVersion !== 1)
     errors.push('unsupported schemaVersion; expected 1');
   const ids = new Set<string>();
@@ -71,6 +90,16 @@ export async function validateEpisode(
       'script',
       errors,
     );
+  if (episode?.script) {
+    try {
+      scriptText = await readFile(
+        await resolveContained(root, episode.script.path),
+        'utf8',
+      );
+    } catch {
+      scriptText = null;
+    }
+  }
   if (episode?.referenceBundle)
     await verifyFile(
       root,
@@ -93,7 +122,57 @@ export async function validateEpisode(
       }
     }
   }
-  for (const beat of episode?.beats ?? []) {
+  if (episode?.story) {
+    try {
+      if (
+        !episode.story.scriptRevision ||
+        !Array.isArray(episode.story.sourceClaims) ||
+        !episode.story.canon ||
+        !Array.isArray(episode.story.beatCandidates)
+      )
+        throw new Error('required story fields are missing');
+      errors.push(...validateScriptRevision(episode.story.scriptRevision));
+      const claims = validateClaimLedger(episode.story.sourceClaims, {
+        factualRelease: episode.release?.productionQAPassed === true,
+      });
+      errors.push(...claims.errors);
+      errors.push(...validateCanon(episode.story.canon).errors);
+      for (const candidate of episode.story.beatCandidates) {
+        addId(errors, ids, candidate.id, 'beat candidate ID');
+        if (
+          !Number.isInteger(candidate.scriptStartChar) ||
+          !Number.isInteger(candidate.scriptEndChar) ||
+          candidate.scriptStartChar < 0 ||
+          candidate.scriptEndChar < candidate.scriptStartChar ||
+          candidate.scriptEndChar > episode.story.scriptRevision.text.length
+        )
+          errors.push(`invalid script span for beat candidate ${candidate.id}`);
+        else if (
+          episode.story.scriptRevision.text.slice(
+            candidate.scriptStartChar,
+            candidate.scriptEndChar,
+          ) !== candidate.spokenText
+        )
+          errors.push(
+            `spoken text mismatch for beat candidate ${candidate.id}`,
+          );
+        for (const claimId of candidate.sourceClaimIds)
+          if (!episode.story.sourceClaims.some((claim) => claim.id === claimId))
+            errors.push(
+              `beat candidate ${candidate.id} references missing claim ${claimId}`,
+            );
+      }
+    } catch (error) {
+      errors.push(
+        `story section is invalid: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  for (const beat of Array.isArray(episode?.beats) ? episode.beats : []) {
+    if (!beat || typeof beat !== 'object') {
+      errors.push('beat must be an object');
+      continue;
+    }
     addId(errors, ids, beat.id, 'beat ID');
     if (
       !Number.isInteger(beat.scriptStartChar) ||
@@ -102,9 +181,37 @@ export async function validateEpisode(
       beat.scriptEndChar < beat.scriptStartChar
     )
       errors.push(`invalid script span for ${beat.id}`);
+    if (
+      Number.isInteger(beat.scriptStartChar) &&
+      Number.isInteger(beat.scriptEndChar) &&
+      beat.scriptStartChar >= 0 &&
+      scriptText !== null &&
+      beat.scriptEndChar <= scriptText.length &&
+      scriptText.slice(beat.scriptStartChar, beat.scriptEndChar) !==
+        beat.spokenText
+    )
+      errors.push(`spoken text mismatch for beat ${beat.id}`);
+    if (
+      scriptText !== null &&
+      (beat.scriptEndChar > scriptText.length ||
+        beat.scriptStartChar > scriptText.length)
+    )
+      errors.push(`invalid script span for beat ${beat.id}`);
+    if (episode?.story)
+      for (const claimId of beat.sourceClaimIds ?? [])
+        if (!episode.story.sourceClaims.some((claim) => claim.id === claimId))
+          errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
-  for (const shot of episode?.shots ?? []) {
+  for (const shot of Array.isArray(episode?.shots) ? episode.shots : []) {
+    if (!shot || typeof shot !== 'object') {
+      errors.push('shot must be an object');
+      continue;
+    }
+    if (!Array.isArray(shot.beatIds) || !shot.image || !shot.semanticReview) {
+      errors.push(`shot ${shot.id ?? 'unknown'} has an invalid shape`);
+      continue;
+    }
     addId(errors, shotIds, shot.id, 'shot ID');
     if (shot.audioEndMs <= shot.audioStartMs || shot.audioStartMs < 0)
       errors.push(`invalid audio range for ${shot.id}`);

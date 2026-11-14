@@ -1,3 +1,5 @@
+import type { ScriptRevision, SourceClaim, StoryCanon } from './story-layer.js';
+
 export type StageStatus =
   | 'pending'
   | 'ready'
@@ -23,6 +25,12 @@ export interface Episode {
     alignmentPath: string;
     alignmentVerified: boolean;
   };
+  story?: {
+    scriptRevision: ScriptRevision;
+    sourceClaims: SourceClaim[];
+    canon: StoryCanon;
+    beatCandidates: BeatCandidate[];
+  };
   beats: Beat[];
   shots: Shot[];
   release: {
@@ -30,6 +38,14 @@ export interface Episode {
     creativeApproval: string | null;
     publishAuthorization: string | null;
   };
+}
+
+export interface BeatCandidate {
+  id: string;
+  spokenText: string;
+  scriptStartChar: number;
+  scriptEndChar: number;
+  sourceClaimIds: string[];
 }
 
 export interface Beat {

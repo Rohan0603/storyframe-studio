@@ -94,3 +94,11 @@ The pipeline must check research claims, original narrative value, character and
 ## Offline foundation
 
 The issue #2 foundation provides a no-spend CLI. After installing dependencies, build with `npm run build`, then use `new`, `validate`, `plan`, or `resume` against an episode directory. `render` fails explicitly because media providers and rendering are not implemented in this offline phase.
+
+## Story development layer
+
+Issue #3 adds a selective Story Skills boundary and offline story data
+validators. See [the integration contract](docs/story-skills-integration.md).
+The optional `episode.story` section preserves normalized script revisions,
+stable speaker IDs, source claims, continuity canon, and exact beat candidates
+for future beat-to-shot alignment; it does not generate images or audio.

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validateEpisode } from '../src/manifest.js';
+import { createScriptRevision } from '../src/story-layer.js';
 import type { Episode } from '../src/types.js';
 
 const sha256 = (value: string) =>
@@ -117,6 +118,53 @@ describe('episode validation', () => {
     );
     expect(result.valid).toBe(false);
     expect(result.errors.join('\n')).toMatch(/beats|shots|release/i);
+  });
+
+  it('rejects malformed entries and canonical beat text drift', async () => {
+    const { root, episode } = await fixture();
+    const scriptRevision = createScriptRevision({
+      id: 'script-rev-01',
+      text: 'Good script',
+      segments: [],
+    });
+    episode.story = {
+      scriptRevision,
+      sourceClaims: [],
+      canon: { characters: [], props: [], observations: [] },
+      beatCandidates: [],
+    };
+    episode.beats = [
+      {
+        id: 'beat-01',
+        spokenText: 'EVIL',
+        scriptStartChar: 0,
+        scriptEndChar: 4,
+        sourceClaimIds: [],
+      },
+      null as never,
+    ];
+    const result = await validateEpisode(episode, root);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join('\n')).toMatch(
+      /spoken text mismatch|beat must be an object/,
+    );
+  });
+
+  it('rejects out-of-bounds beats and malformed release state', async () => {
+    const { root, episode } = await fixture();
+    episode.beats = [
+      {
+        id: 'beat-01',
+        spokenText: '',
+        scriptStartChar: 999,
+        scriptEndChar: 999,
+        sourceClaimIds: [],
+      },
+    ];
+    episode.release = {} as never;
+    const result = await validateEpisode(episode, root);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/script span|release/);
   });
 
   it('rejects a symlink that escapes the project root', async () => {
