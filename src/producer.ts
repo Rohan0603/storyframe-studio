@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { createSrt, type AudioAlignment } from './audio.js';
 import { sha256, validateEpisode } from './manifest.js';
 import { resolveContained } from './paths.js';
@@ -455,9 +455,12 @@ export async function approveProducerStage(
     throw new Error('reviewer and specific review notes are required');
   const report = await assessProducer(root, episode);
   const step = report.stages.find((item) => item.stage === stage);
+  const blockers = step?.reasons.filter(
+    (reason) => reason !== 'approval is stale for changed upstream dependencies',
+  );
   if (
     !step ||
-    step.reasons.length ||
+    blockers?.length ||
     (step.status !== 'needs-review' && step.status !== 'stale')
   )
     throw new Error('producer stage cannot be approved without current evidence');
