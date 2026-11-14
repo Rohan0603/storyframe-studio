@@ -61,9 +61,9 @@ describe('Guided/Auto producer contracts', () => {
     expect(() =>
       startProducer(episode, { ...policy, imageCallsAuthorized: true }),
     ).toThrow(/authorize/);
-    expect(() =>
-      startProducer(episode, { ...policy, budgetUsd: 10 }),
-    ).toThrow(/authorize/);
+    expect(() => startProducer(episode, { ...policy, budgetUsd: 10 })).toThrow(
+      /authorize/,
+    );
     startProducer(episode, policy);
     expect(() => startProducer(episode, policy)).toThrow(/already exists/);
   });
@@ -87,7 +87,13 @@ describe('Guided/Auto producer contracts', () => {
     const episode = await createEpisode(root, 'episode-01');
     startProducer(episode, boundedPolicy(30, 120_000));
     await expect(
-      approveProducerStage(root, episode, 'research', 'owner', 'Reviewed source ledger'),
+      approveProducerStage(
+        root,
+        episode,
+        'research',
+        'owner',
+        'Reviewed source ledger',
+      ),
     ).rejects.toThrow(/current evidence/i);
     await expect(
       approveProducerStage(root, episode, 'research', '', ''),
@@ -108,7 +114,9 @@ describe('Guided/Auto producer contracts', () => {
     await expect(
       runCli(['producer', root, 'init', 'guided', '40', '120']),
     ).resolves.toBe(0);
-    const episode = JSON.parse(await readFile(join(root, 'episode.json'), 'utf8'));
+    const episode = JSON.parse(
+      await readFile(join(root, 'episode.json'), 'utf8'),
+    );
     expect(episode.production.policy.maxShots).toBe(40);
     expect(episode.production.policy.maxDurationMs).toBe(120_000);
     expect(episode.production.policy.publishingAuthorized).toBe(false);
