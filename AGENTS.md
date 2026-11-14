@@ -18,6 +18,9 @@ Read `README.md`, `docs/architecture.md`, `docs/production-contract.md`, and the
 
 - **Chief**: research, scope, architecture, issue readiness, acceptance criteria, risk analysis and independent PR review.
 - **Worker**: implement a scoped, explicitly assigned task in a dedicated branch/PR; run tests and provide evidence.
+- **Specialized subagents**: Worker/Chief may invoke specialized subagents whenever they are justified by the task, such as for independent research, parallel work on disjoint changes, targeted testing, security/path review or PR review. Every delegation must have a bounded scope, explicit deliverables, a clear handoff, and an identified owner for integration.
+- Delegation must not become automatic recursive dispatch: a subagent may not create further agents unless the owner explicitly authorizes that additional delegation. Parallel work is allowed only when write scopes and dependencies are genuinely independent.
+- The invoking Worker/Chief remains responsible for the result. Delegated code, research and test claims must be checked at the exact handoff, and at least one independent review must be performed for each PR before merge.
 - An agent operates only when the owner invokes or schedules it. **Never trigger an agent automatically** from GitHub events, webhooks, labels, comments or merges.
 - Do not self-certify an independent review. Do not merge risky changes without an appropriate separate review and repository authorization.
 - Document exact branch/head, changed files, commands/tests and failures in the PR.
