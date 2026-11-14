@@ -92,6 +92,12 @@ The strings marked `PLACEHOLDER` are not valid actual SHA-256 values and are inc
 9. Release metadata must separately distinguish creative approval, independent QA, provider permission and explicit publication authorization.
 10. No unreviewed or unrelated image may be substituted to meet the stills/minute target.
 
+11. Generated stills carry `codex-desktop.image_gen` provenance, packet hash,
+attempt/receipt identity and decoded dimensions. `semanticReview.status = pass`
+also requires `pixelsDecoded: true`, non-empty independent notes and an exact
+reviewed image SHA. Unknown quota, charge, output persistence, decode or pixel
+review state blocks acceptance.
+
 ## Planning density
 
 Cinematic default **14–18 stills per narration minute**; reflective ~12/min; energetic ~21/min. These are heuristic _planning bands_, adjusted by narrative beats, dwell time, source audio and generation quota. No arbitrary minimum independent of story content. A new shot must add visual storytelling value.

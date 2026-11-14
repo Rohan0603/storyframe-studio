@@ -78,6 +78,15 @@ This is a **tool-backed human/agent workflow**, not an assumption of a public HT
 
 Where unattended invocation, reference handling, file persistence, batch return or usage metering is unavailable, stop at a durable handoff/checkpoint. A JSON prompt alone is not an image result.
 
+The Issue #6 repository boundary implements this handoff as a fail-closed
+preflight and receipt state machine. Batches have explicit shot and attempt
+limits; a dispatch is recorded before any external call, and an ambiguous return
+becomes `unknown` until reconciled. Output ingestion rechecks path containment,
+rejects symlink targets, preserves invalid bytes as attempt evidence, and accepts
+only decodable PNG pixels with dimensions and SHA-256. A shot cannot pass visual
+QA without independent actual-pixel evidence bound to the exact image hash and
+frozen references.
+
 ### Voice provider: Gemini TTS
 
 - Resolve the live available expressive TTS model rather than hard-coding a promise of availability.
