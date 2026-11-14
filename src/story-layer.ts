@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { assertStableId } from './ids.js';
+import { assertStableId, isStableId } from './ids.js';
+import { resolveContained } from './paths.js';
 
 export const STORY_SKILLS = [
   'premise-workshop',
@@ -65,6 +65,35 @@ export interface ScriptRevision {
   segments: ScriptSegment[];
 }
 
+export function validateScriptRevision(revision: ScriptRevision): string[] {
+  const errors: string[] = [];
+  if (!isStableId(revision.id))
+    errors.push(`script revision ID is invalid: ${revision.id}`);
+  if (revision.textSha256 !== hashNormalizedSpokenText(revision.text))
+    errors.push('script revision hash mismatch');
+  const ids = new Set<string>();
+  let previousEnd = 0;
+  for (const segment of revision.segments) {
+    if (!isStableId(segment.id) || ids.has(segment.id))
+      errors.push(`script segment ID is invalid or duplicated: ${segment.id}`);
+    ids.add(segment.id);
+    if (!isStableId(segment.speakerId))
+      errors.push(`speaker ID is invalid: ${segment.speakerId}`);
+    if (
+      !Number.isInteger(segment.startChar) ||
+      !Number.isInteger(segment.endChar) ||
+      segment.startChar < previousEnd ||
+      segment.endChar < segment.startChar ||
+      segment.endChar > revision.text.length ||
+      revision.text.slice(segment.startChar, segment.endChar) !==
+        segment.spokenText
+    )
+      errors.push(`invalid script segment span for ${segment.id}`);
+    previousEnd = segment.endChar;
+  }
+  return errors;
+}
+
 export function createScriptRevision(input: {
   id: string;
   text: string;
@@ -72,15 +101,23 @@ export function createScriptRevision(input: {
 }): ScriptRevision {
   assertStableId(input.id, 'script revision ID');
   const text = normalizeSpokenText(input.text);
+  const ids = new Set<string>();
+  let previousEnd = 0;
   const segments = input.segments.map((segment) => {
     assertStableId(segment.id, 'script segment ID');
     assertStableId(segment.speakerId, 'speaker ID');
+    if (ids.has(segment.id))
+      throw new Error(`duplicate script segment ID: ${segment.id}`);
+    ids.add(segment.id);
     if (
-      segment.startChar < 0 ||
+      !Number.isInteger(segment.startChar) ||
+      !Number.isInteger(segment.endChar) ||
+      segment.startChar < previousEnd ||
       segment.endChar < segment.startChar ||
       segment.endChar > text.length
     )
       throw new Error(`invalid script span for ${segment.id}`);
+    previousEnd = segment.endChar;
     return {
       ...segment,
       spokenText: text.slice(segment.startChar, segment.endChar),
@@ -110,15 +147,29 @@ export function validateClaimLedger(
   const errors: string[] = [];
   const ids = new Set<string>();
   for (const claim of claims) {
+    if (!isStableId(claim.id)) errors.push(`claim ID is invalid: ${claim.id}`);
     if (ids.has(claim.id)) errors.push(`duplicate claim ID: ${claim.id}`);
     ids.add(claim.id);
+    if (!claim.statement.trim())
+      errors.push(`claim ${claim.id} statement is required`);
     try {
-      new URL(claim.sourceUrl);
+      const url = new URL(claim.sourceUrl);
+      if (!['http:', 'https:'].includes(url.protocol))
+        throw new Error('scheme');
     } catch {
       errors.push(`claim ${claim.id} sourceUrl is invalid`);
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(claim.retrievedDate))
+    const date = new Date(`${claim.retrievedDate}T00:00:00.000Z`);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(claim.retrievedDate) ||
+      Number.isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== claim.retrievedDate
+    )
       errors.push(`claim ${claim.id} retrievedDate is invalid`);
+    if (!['high', 'medium', 'low'].includes(claim.confidence))
+      errors.push(`claim ${claim.id} confidence is invalid`);
+    if (!['verified', 'disputed', 'open'].includes(claim.status))
+      errors.push(`claim ${claim.id} status is invalid`);
     if (options.factualRelease && claim.status !== 'verified')
       errors.push(
         `claim ${claim.id} is ${claim.status} and blocks factual release`,
@@ -151,11 +202,18 @@ export function validateCanon(canon: StoryCanon): {
   errors: string[];
 } {
   const errors: string[] = [];
-  const entities = new Map(
-    [...canon.characters, ...canon.props].map((entity) => [entity.id, entity]),
-  );
+  const entities = new Map<string, CanonEntity>();
+  for (const entity of [...canon.characters, ...canon.props]) {
+    if (!isStableId(entity.id))
+      errors.push(`invalid canon entity ID: ${entity.id}`);
+    if (entities.has(entity.id))
+      errors.push(`duplicate canon entity ID: ${entity.id}`);
+    entities.set(entity.id, entity);
+  }
   const seen = new Map<string, string>();
   for (const observation of canon.observations) {
+    if (!isStableId(observation.beatId))
+      errors.push(`invalid beat ID: ${observation.beatId}`);
     const entity = entities.get(observation.entityId);
     if (!entity) {
       errors.push(
@@ -169,11 +227,13 @@ export function validateCanon(canon: StoryCanon): {
       errors.push(
         `contradictory state for ${observation.entityId} at ${observation.beatId}`,
       );
-    if (observation.state !== entity.state && !observation.transition)
+    const effective = seen.get(observation.entityId) ?? entity.state;
+    if (observation.state !== effective && !observation.transition)
       errors.push(
         `state contradicts canon for ${observation.entityId}: ${observation.state}`,
       );
     seen.set(key, observation.state);
+    seen.set(observation.entityId, observation.state);
   }
   return { valid: errors.length === 0, errors };
 }
@@ -198,7 +258,7 @@ export async function loadSelectedSkills(
   const selected = selectSkills(stage);
   const loaded = await Promise.all(
     selected.map(async (name) => {
-      const path = join(skillRoot, name, 'SKILL.md');
+      const path = await resolveContained(skillRoot, `${name}/SKILL.md`);
       return { name, path, content: await readFile(path, 'utf8') };
     }),
   );

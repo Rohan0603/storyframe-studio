@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolveContained } from './paths.js';
 import { isStableId } from './ids.js';
-import { validateCanon, validateClaimLedger } from './story-layer.js';
+import {
+  validateCanon,
+  validateClaimLedger,
+  validateScriptRevision,
+} from './story-layer.js';
 import type { Episode, ValidationResult } from './types.js';
 
 const HASH = /^[a-f0-9]{64}$/;
@@ -95,26 +99,49 @@ export async function validateEpisode(
     }
   }
   if (episode?.story) {
-    const claims = validateClaimLedger(episode.story.sourceClaims, {
-      factualRelease: episode.release?.productionQAPassed === true,
-    });
-    errors.push(...claims.errors);
-    errors.push(...validateCanon(episode.story.canon).errors);
-    for (const candidate of episode.story.beatCandidates) {
-      addId(errors, ids, candidate.id, 'beat candidate ID');
+    try {
       if (
-        candidate.scriptStartChar < 0 ||
-        candidate.scriptEndChar < candidate.scriptStartChar ||
-        candidate.scriptEndChar > episode.story.scriptRevision.text.length
+        !episode.story.scriptRevision ||
+        !Array.isArray(episode.story.sourceClaims) ||
+        !episode.story.canon ||
+        !Array.isArray(episode.story.beatCandidates)
       )
-        errors.push(`invalid script span for beat candidate ${candidate.id}`);
-      else if (
-        episode.story.scriptRevision.text.slice(
-          candidate.scriptStartChar,
-          candidate.scriptEndChar,
-        ) !== candidate.spokenText
-      )
-        errors.push(`spoken text mismatch for beat candidate ${candidate.id}`);
+        throw new Error('required story fields are missing');
+      errors.push(...validateScriptRevision(episode.story.scriptRevision));
+      const claims = validateClaimLedger(episode.story.sourceClaims, {
+        factualRelease: episode.release?.productionQAPassed === true,
+      });
+      errors.push(...claims.errors);
+      errors.push(...validateCanon(episode.story.canon).errors);
+      for (const candidate of episode.story.beatCandidates) {
+        addId(errors, ids, candidate.id, 'beat candidate ID');
+        if (
+          !Number.isInteger(candidate.scriptStartChar) ||
+          !Number.isInteger(candidate.scriptEndChar) ||
+          candidate.scriptStartChar < 0 ||
+          candidate.scriptEndChar < candidate.scriptStartChar ||
+          candidate.scriptEndChar > episode.story.scriptRevision.text.length
+        )
+          errors.push(`invalid script span for beat candidate ${candidate.id}`);
+        else if (
+          episode.story.scriptRevision.text.slice(
+            candidate.scriptStartChar,
+            candidate.scriptEndChar,
+          ) !== candidate.spokenText
+        )
+          errors.push(
+            `spoken text mismatch for beat candidate ${candidate.id}`,
+          );
+        for (const claimId of candidate.sourceClaimIds)
+          if (!episode.story.sourceClaims.some((claim) => claim.id === claimId))
+            errors.push(
+              `beat candidate ${candidate.id} references missing claim ${claimId}`,
+            );
+      }
+    } catch (error) {
+      errors.push(
+        `story section is invalid: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
   for (const beat of episode?.beats ?? []) {

@@ -12,6 +12,7 @@ import {
   selectSkills,
   validateCanon,
   validateClaimLedger,
+  validateScriptRevision,
 } from '../src/story-layer.js';
 
 describe('story layer', () => {
@@ -63,6 +64,52 @@ describe('story layer', () => {
     );
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toMatch(/claim-01.*disputed/i);
+  });
+
+  it('rejects unsafe and malformed claim metadata', () => {
+    const result = validateClaimLedger(
+      [
+        {
+          id: 'bad id',
+          statement: ' ',
+          sourceUrl: 'javascript:alert(1)',
+          retrievedDate: '2026-99-99',
+          confidence: 'certain' as never,
+          status: 'verified',
+        },
+      ],
+      { factualRelease: true },
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors.join('\n')).toMatch(
+      /ID|statement|sourceUrl|retrievedDate|confidence/,
+    );
+  });
+
+  it('rejects overlapping or malformed script segments', () => {
+    const result = validateScriptRevision({
+      id: 'script-rev-01',
+      text: 'Hello world',
+      textSha256: hashNormalizedSpokenText('Hello world'),
+      segments: [
+        {
+          id: 'span-01',
+          speakerId: 'speaker-a',
+          startChar: 0,
+          endChar: 5,
+          spokenText: 'Hello',
+        },
+        {
+          id: 'span-02',
+          speakerId: 'speaker-a',
+          startChar: 4,
+          endChar: 11,
+          spokenText: 'o world',
+        },
+      ],
+    });
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.join('\n')).toMatch(/invalid script segment span/);
   });
 
   it('rejects contradictory character and prop states', () => {
