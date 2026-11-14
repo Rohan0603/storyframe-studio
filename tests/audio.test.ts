@@ -218,6 +218,10 @@ describe('Gemini TTS and verified captions', () => {
   it('normalizes Gemini PCM l16 output into a persisted WAV', async () => {
     const root = await mkdtemp(join(tmpdir(), 'storyframe-audio-l16-'));
     const pcm = Buffer.alloc(4800);
+    pcm[0] = 0x12;
+    pcm[1] = 0x34;
+    pcm[2] = 0xab;
+    pcm[3] = 0xcd;
     const result = await synthesizeGeminiTts(root, {
       approvedText: 'The traveler opens the chest.',
       transcript: 'The traveler opens the chest.',
@@ -254,6 +258,7 @@ describe('Gemini TTS and verified captions', () => {
     const persisted = await readFile(join(root, result.audioPath));
     expect(persisted.subarray(0, 4).toString()).toBe('RIFF');
     expect(persisted.readUInt32LE(24)).toBe(24000);
+    expect([...persisted.subarray(44, 48)]).toEqual([0x34, 0x12, 0xcd, 0xab]);
     expect(result.mimeType).toBe('audio/wav');
     expect(result.durationMs).toBe(100);
   });

@@ -143,7 +143,10 @@ function pcmL16ToWav(
   wav.writeUInt16LE(16, 34);
   wav.write('data', 36, 'ascii');
   wav.writeUInt32LE(bytes.length, 40);
-  Buffer.from(bytes).copy(wav, 44);
+  // MIME audio/l16 stores each 16-bit sample in network byte order. WAV PCM
+  // stores samples little-endian, so convert the payload before persisting it.
+  const pcm = Buffer.from(bytes);
+  pcm.swap16().copy(wav, 44);
   return wav;
 }
 
@@ -152,11 +155,11 @@ function normalizeGeminiAudio(
   mimeType: string,
 ): { bytes: Buffer; mimeType: 'audio/wav' } {
   if (mimeType === 'audio/wav') return { bytes: Buffer.from(bytes), mimeType };
-  const match = /^audio\/l16;\s*rate=(\d+);\s*channels=(\d+)$/iu.exec(
-    mimeType,
-  );
+  const match = /^audio\/l16;\s*rate=(\d+);\s*channels=(\d+)$/iu.exec(mimeType);
   if (!match)
-    throw new Error(`Gemini TTS returned unsupported audio format: ${mimeType}`);
+    throw new Error(
+      `Gemini TTS returned unsupported audio format: ${mimeType}`,
+    );
   return {
     bytes: pcmL16ToWav(bytes, Number(match[1]), Number(match[2])),
     mimeType: 'audio/wav',
