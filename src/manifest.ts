@@ -10,6 +10,7 @@ import {
 import type { Episode, ValidationResult } from './types.js';
 import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
+import { readPersistedImage } from './image-generation.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 export const sha256 = (bytes: Uint8Array | string): string =>
@@ -257,6 +258,12 @@ export async function validateEpisode(
         beat.spokenText
     )
       errors.push(`spoken text mismatch for beat ${beat.id}`);
+    if (episode.story) {
+      if (beat.scriptRevisionId !== episode.story.scriptRevision.id)
+        errors.push(`beat ${beat.id} has an invalid script revision ID`);
+      if (beat.scriptRevisionSha256 !== episode.story.scriptRevision.textSha256)
+        errors.push(`beat ${beat.id} has an invalid script revision hash`);
+    }
     if (
       scriptText !== null &&
       (beat.scriptEndChar > scriptText.length ||
@@ -309,6 +316,27 @@ export async function validateEpisode(
         errors.push(`shot ${shot.id} references missing beat ${beatId}`);
     if (shot.image.sha256 !== null && !HASH.test(shot.image.sha256))
       errors.push(`invalid image hash for ${shot.id}`);
+    const imageStatuses = [
+      'pending', 'ready', 'running', 'needs-review', 'approved', 'rejected',
+      'blocked', 'failed', 'stale',
+    ];
+    if (!imageStatuses.includes(shot.image.status))
+      errors.push(`invalid image status for ${shot.id}`);
+    if (shot.image.sha256 !== null) {
+      const provenance = shot.image.provenance;
+      if (!provenance)
+        errors.push(`image ${shot.id} is missing provenance`);
+      else {
+        if (provenance.tool !== 'codex-desktop.image_gen' || !HASH.test(provenance.packetSha256) || !provenance.attemptId.trim())
+          errors.push(`image ${shot.id} has invalid provenance identity`);
+        if (!['persisted', 'reconciled'].includes(provenance.receiptStatus) || !Number.isInteger(provenance.width) || !Number.isInteger(provenance.height) || provenance.width < 1 || provenance.height < 1)
+          errors.push(`image ${shot.id} has invalid provenance receipt or dimensions`);
+      }
+    }
+    if (!['pending', 'pass', 'fail', 'unknown'].includes(shot.semanticReview.status))
+      errors.push(`invalid semantic review status for ${shot.id}`);
+    if (shot.semanticReview.status === 'pass' && shot.semanticReview.pixelsDecoded !== true)
+      errors.push(`passing semantic review requires decoded pixels for ${shot.id}`);
     try {
       await resolveContained(root, shot.image.path);
     } catch (error) {
@@ -324,10 +352,30 @@ export async function validateEpisode(
         `image ${shot.id}`,
         errors,
       );
+    if (shot.image.sha256 !== null) {
+      try {
+        const inspected = await readPersistedImage(root, shot.image.path);
+        if (inspected.sha256 !== shot.image.sha256)
+          errors.push(`image ${shot.id} decode hash mismatch`);
+        if (!shot.image.provenance)
+          errors.push(`image ${shot.id} is missing generation provenance`);
+        else if (
+          shot.image.provenance.width !== inspected.width ||
+          shot.image.provenance.height !== inspected.height
+        )
+          errors.push(`image ${shot.id} provenance dimensions mismatch`);
+      } catch (error) {
+        errors.push(
+          `image ${shot.id} cannot be decoded: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
     if (
       shot.semanticReview.status === 'pass' &&
       (shot.image.sha256 === null ||
-        shot.semanticReview.reviewedImageSha256 !== shot.image.sha256)
+        shot.semanticReview.reviewedImageSha256 !== shot.image.sha256 ||
+        shot.semanticReview.pixelsDecoded !== true ||
+        !shot.semanticReview.notes.trim())
     )
       errors.push(`review hash is not bound to image for ${shot.id}`);
     if (episode.story) {

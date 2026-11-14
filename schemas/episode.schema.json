@@ -183,8 +183,83 @@
             }
           }
         },
-        "referenceBinding": { "$ref": "#/$defs/referenceBinding" }
+        "referenceBinding": { "$ref": "#/$defs/referenceBinding" },
+        "image": { "$ref": "#/$defs/imageOutput" },
+        "semanticReview": { "$ref": "#/$defs/semanticReview" }
       }
+    },
+    "imageOutput": {
+      "type": "object",
+      "required": ["path", "sha256", "status"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "status": {
+          "enum": [
+            "pending",
+            "ready",
+            "running",
+            "needs-review",
+            "approved",
+            "rejected",
+            "blocked",
+            "failed",
+            "stale"
+          ]
+        },
+        "provenance": { "$ref": "#/$defs/imageProvenance" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "sha256": { "type": "string" } } },
+          "then": { "required": ["provenance"] }
+        }
+      ]
+    },
+    "imageProvenance": {
+      "type": "object",
+      "required": [
+        "tool",
+        "packetSha256",
+        "attemptId",
+        "receiptStatus",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "tool": { "const": "codex-desktop.image_gen" },
+        "packetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "attemptId": { "type": "string", "minLength": 1 },
+        "receiptStatus": { "enum": ["persisted", "reconciled"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "semanticReview": {
+      "type": "object",
+      "required": ["status", "reviewedImageSha256", "notes"],
+      "properties": {
+        "status": { "enum": ["pending", "pass", "fail", "unknown"] },
+        "reviewedImageSha256": { "type": ["string", "null"] },
+        "notes": { "type": "string" },
+        "pixelsDecoded": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "pass" } } },
+          "then": {
+            "required": ["pixelsDecoded"],
+            "properties": {
+              "pixelsDecoded": { "const": true },
+              "reviewedImageSha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "notes": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
     },
     "referenceImage": {
       "type": "object",

@@ -22,4 +22,11 @@ describe('CLI', () => {
       /not implemented|provider/i,
     );
   });
+
+  it('fails closed for image-preflight without calling a provider', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-cli-image-'));
+    await expect(runCli(['image-preflight', root])).rejects.toThrow(
+      /image-preflight BLOCKED.*unavailable/i,
+    );
+  });
 });

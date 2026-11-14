@@ -113,3 +113,14 @@ its SHA-256. Freeze hashes bind those files to the story revision and canon.
 Changed, missing, unsafe or drifted references fail closed and invalidate
 dependent shot bindings. The offline `references` CLI command records this
 verification without contacting an image provider.
+
+## Issue #6 image-generation boundary
+
+Image generation is gated at the native Codex Desktop `image_gen` boundary.
+The repository prepares exact-span shot packets and validates returned PNG bytes,
+dimensions, hashes, provenance, receipts and independent pixel-review evidence.
+`image-preflight` is fail-closed until the running Desktop client verifies native
+availability, approved reference-image inputs, output persistence, quota and
+charge state; it never calls a provider or substitutes another service. Unknown
+receipts are reconciled rather than retried, and rejected/unknown output bytes
+are preserved under ignored local attempt storage.

@@ -12,6 +12,7 @@ import { createEpisode } from './scaffold.js';
 import { resolveContained } from './paths.js';
 import type { Episode } from './types.js';
 import { densityNote, storyboardMarkdown } from './alignment.js';
+import { recordImagePreflight } from './image-generation.js';
 
 async function load(root: string): Promise<Episode> {
   return JSON.parse(
@@ -51,7 +52,7 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|plan|align|references|validate|resume|render> <episode-root> [episode-id]',
+      'usage: storyframe <new|plan|align|references|validate|resume|image-preflight|render> <episode-root> [episode-id]',
     );
   if (command === 'new') {
     await createEpisode(root, episodeId);
@@ -61,6 +62,16 @@ export async function runCli(args: string[]): Promise<number> {
     throw new Error(
       'render is not implemented in the offline foundation; no provider or media call was made',
     );
+  if (command === 'image-preflight') {
+    const result = await recordImagePreflight(root, {
+      nativeToolAvailable: false,
+      referenceImagesSupported: false,
+      outputBytesPersistable: false,
+      quota: 'unknown',
+      chargeState: 'unknown',
+    });
+    throw new Error(`image-preflight ${result.status.toUpperCase()}: ${result.reason}`);
+  }
   const episode = await load(root);
   const validation = await validateEpisode(episode, root);
   if (!validation.valid)

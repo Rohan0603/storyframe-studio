@@ -125,11 +125,17 @@ export interface Shot {
     reason: string;
     relatedBeatIds: string[];
   };
-  image: { path: string; sha256: string | null; status: StageStatus };
+  image: {
+    path: string;
+    sha256: string | null;
+    status: StageStatus;
+    provenance?: ImageProvenance;
+  };
   semanticReview: {
     status: 'pending' | 'pass' | 'fail' | 'unknown';
     reviewedImageSha256: string | null;
     notes: string;
+    pixelsDecoded?: boolean;
   };
   referenceBinding?: {
     freezeSha256: string;
@@ -137,6 +143,15 @@ export interface Shot {
     referenceIds: string[];
     referenceHashes: Record<string, string>;
   };
+}
+
+export interface ImageProvenance {
+  tool: 'codex-desktop.image_gen';
+  packetSha256: string;
+  attemptId: string;
+  receiptStatus: 'persisted' | 'reconciled';
+  width: number;
+  height: number;
 }
 
 export interface ValidationResult {
@@ -151,3 +166,5 @@ export interface Checkpoint {
   outputHashes: Record<string, string>;
   recordedAt: string;
 }
+
+export type ImageReviewStatus = 'approved' | 'rejected' | 'unknown';
