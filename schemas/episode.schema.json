@@ -84,8 +84,16 @@
           ],
           "properties": {
             "maxShots": { "type": "integer", "minimum": 1, "maximum": 500 },
-            "maxDurationMs": { "type": "integer", "minimum": 1000, "maximum": 3600000 },
-            "maxImageAttemptsPerShot": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "maxDurationMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 3600000
+            },
+            "maxImageAttemptsPerShot": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
             "maxCloudTtsRequests": { "const": 0 },
             "imageCallsAuthorized": { "const": false },
             "cloudTtsCallsAuthorized": { "const": false },
@@ -97,10 +105,26 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["stage", "fingerprint", "reviewer", "notes", "recordedAt"],
+            "required": [
+              "stage",
+              "fingerprint",
+              "reviewer",
+              "notes",
+              "recordedAt"
+            ],
             "properties": {
               "stage": {
-                "enum": ["research", "script", "beat-map", "references", "images", "narration", "captions", "render", "final-qa"]
+                "enum": [
+                  "research",
+                  "script",
+                  "beat-map",
+                  "references",
+                  "images",
+                  "narration",
+                  "captions",
+                  "render",
+                  "final-qa"
+                ]
               },
               "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
               "reviewer": { "type": "string", "minLength": 1 },
@@ -111,7 +135,15 @@
         },
         "render": {
           "type": "object",
-          "required": ["path", "sha256", "durationMs", "width", "height", "videoCodec", "audioCodec"],
+          "required": [
+            "path",
+            "sha256",
+            "durationMs",
+            "width",
+            "height",
+            "videoCodec",
+            "audioCodec"
+          ],
           "properties": {
             "path": { "type": "string", "minLength": 1 },
             "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
@@ -131,22 +163,36 @@
             "renderSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
             "checks": {
               "type": "object",
-              "required": ["audiovisual", "captionSync", "storyImageMatch", "rights", "originality", "claims", "aiDisclosure"],
+              "required": [
+                "audiovisual",
+                "captionSync",
+                "storyImageMatch",
+                "rights",
+                "originality",
+                "claims",
+                "aiDisclosure"
+              ],
               "properties": {
-          "audiovisual": { "$ref": "#/$defs/qaFinding" },
-          "captionSync": { "$ref": "#/$defs/qaFinding" },
-          "storyImageMatch": { "$ref": "#/$defs/qaFinding" },
-          "rights": { "$ref": "#/$defs/qaFinding" },
-          "originality": { "$ref": "#/$defs/qaFinding" },
-          "claims": { "$ref": "#/$defs/qaFinding" },
-          "aiDisclosure": { "$ref": "#/$defs/qaFinding" }
+                "audiovisual": { "$ref": "#/$defs/qaFinding" },
+                "captionSync": { "$ref": "#/$defs/qaFinding" },
+                "storyImageMatch": { "$ref": "#/$defs/qaFinding" },
+                "rights": { "$ref": "#/$defs/qaFinding" },
+                "originality": { "$ref": "#/$defs/qaFinding" },
+                "claims": { "$ref": "#/$defs/qaFinding" },
+                "aiDisclosure": { "$ref": "#/$defs/qaFinding" }
               }
             }
           }
         },
         "youtube": {
           "type": "object",
-          "required": ["title", "description", "disclosure", "tags", "chapters"],
+          "required": [
+            "title",
+            "description",
+            "disclosure",
+            "tags",
+            "chapters"
+          ],
           "properties": {
             "title": { "type": "string", "minLength": 1 },
             "description": { "type": "string", "minLength": 1 },
