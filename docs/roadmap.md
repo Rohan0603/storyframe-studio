@@ -37,7 +37,7 @@
 
 ## Phase 3 — voice, synchronization and renderer (P0)
 
-- [ ] Verify live Google Gemini expressive TTS model and current billing terms; no key in repo.
+- [ ] Verify the selected narration provider: live Google Gemini expressive TTS with current billing terms, or local Kokoro ONNX CPU inference; no key in repo.
 - [ ] Generate transcript-exact segmented narration and stable character voices.
 - [ ] Create verified audio alignment with shot time boundaries and caption timestamps.
 - [ ] Add FFmpeg still assembly and FFprobe metadata/decode checks; save MP4 + SRT.

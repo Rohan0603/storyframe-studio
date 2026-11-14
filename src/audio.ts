@@ -1,9 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { link, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import {
+  link,
+  mkdir,
+  readFile,
+  rm,
+  unlink,
+  writeFile,
+  mkdtemp,
+} from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawn } from 'node:child_process';
 import { resolveContained } from './paths.js';
 import { sha256 } from './manifest.js';
-import type { Beat, Shot } from './types.js';
+import type { Beat, NarrationProvider, Shot } from './types.js';
 
 export type AlignmentSource = 'provider' | 'manual' | 'estimated';
 
@@ -49,12 +59,41 @@ export interface TtsResult {
   audioSha256: string;
   durationMs: number;
   mimeType: string;
+  alignment?: AudioAlignment;
+  alignmentPath?: string;
+  receiptPath?: string;
+}
+
+export interface KokoroTtsOptions {
+  approvedText: string;
+  transcript: string;
+  pythonExecutable: string;
+  modelPath: string;
+  voicesPath: string;
+  voice: string;
+  outputPath?: string;
+  requestId?: string;
+  language?: string;
+  speed?: number;
+  alignmentPath?: string;
+  environment?: NodeJS.ProcessEnv;
+}
+
+interface KokoroPhonemeTiming {
+  phoneme: string;
+  start: number;
+  end: number;
+}
+
+interface KokoroRunResult {
+  sampleRate: number;
+  timings: KokoroPhonemeTiming[];
 }
 
 interface TtsReceipt {
   version: 1;
   requestId: string;
-  provider: 'gemini-tts';
+  provider: NarrationProvider;
   model: string;
   voiceName: string;
   transcriptSha256: string;
@@ -63,6 +102,8 @@ interface TtsReceipt {
   audioSha256?: string;
   durationMs?: number;
   recordedAt: string;
+  alignmentPath?: string;
+  phonemeTimings?: KokoroPhonemeTiming[];
 }
 
 const tokenise = (value: string): string[] =>
@@ -75,7 +116,7 @@ const tokenise = (value: string): string[] =>
 
 function assertExactTranscript(approvedText: string, transcript: string): void {
   if (approvedText !== transcript)
-    throw new Error('Gemini TTS transcript must match approved words exactly');
+    throw new Error('TTS transcript must match approved words exactly');
 }
 
 function parseWavDuration(bytes: Uint8Array): number {
@@ -152,11 +193,11 @@ function normalizeGeminiAudio(
   mimeType: string,
 ): { bytes: Buffer; mimeType: 'audio/wav' } {
   if (mimeType === 'audio/wav') return { bytes: Buffer.from(bytes), mimeType };
-  const match = /^audio\/l16;\s*rate=(\d+);\s*channels=(\d+)$/iu.exec(
-    mimeType,
-  );
+  const match = /^audio\/l16;\s*rate=(\d+);\s*channels=(\d+)$/iu.exec(mimeType);
   if (!match)
-    throw new Error(`Gemini TTS returned unsupported audio format: ${mimeType}`);
+    throw new Error(
+      `Gemini TTS returned unsupported audio format: ${mimeType}`,
+    );
   return {
     bytes: pcmL16ToWav(bytes, Number(match[1]), Number(match[2])),
     mimeType: 'audio/wav',
@@ -206,6 +247,250 @@ async function readReceipt(
     ) as TtsReceipt;
   } catch {
     return null;
+  }
+}
+
+function runKokoro(
+  pythonExecutable: string,
+  modelPath: string,
+  voicesPath: string,
+  voice: string,
+  text: string,
+  outputPath: string,
+  language: string,
+  speed: number,
+  environment?: NodeJS.ProcessEnv,
+): Promise<KokoroRunResult> {
+  const script = `
+import json
+import sys
+import soundfile as sf
+from kokoro_onnx import Kokoro
+model, voices, voice, text, output, language, speed = sys.argv[1:]
+kokoro = Kokoro(model, voices)
+if not kokoro.has_timings:
+    raise RuntimeError('Kokoro model does not expose duration timings')
+samples, sample_rate, timings = kokoro.create_timed(
+    text, voice=voice, speed=float(speed), lang=language
+)
+sf.write(output, samples, sample_rate, subtype='PCM_16')
+print(json.dumps({
+    'sampleRate': sample_rate,
+    'timings': [
+        {'phoneme': item.phoneme, 'start': item.start, 'end': item.end}
+        for item in timings
+    ],
+}))
+`;
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      pythonExecutable,
+      [
+        '-c',
+        script,
+        modelPath,
+        voicesPath,
+        voice,
+        text,
+        outputPath,
+        language,
+        String(speed),
+      ],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+        env: environment ? { ...process.env, ...environment } : undefined,
+      },
+    );
+    let stderr = '';
+    let stdout = '';
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.once('error', reject);
+    child.once('close', (code) => {
+      if (code === 0) {
+        try {
+          resolve(JSON.parse(stdout) as KokoroRunResult);
+        } catch (error) {
+          reject(
+            new Error(
+              `Kokoro process returned invalid timing evidence: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+          );
+        }
+      } else
+        reject(new Error(`Kokoro process failed (${code}): ${stderr.trim()}`));
+    });
+  });
+}
+
+function groupKokoroTimings(
+  transcript: string,
+  timings: KokoroPhonemeTiming[],
+): WordTiming[] {
+  const words = tokenise(transcript);
+  const groups: Array<{ startMs: number; endMs: number }> = [];
+  let start: number | null = null;
+  let end = 0;
+  for (const timing of timings) {
+    if (
+      typeof timing.phoneme !== 'string' ||
+      !Number.isFinite(timing.start) ||
+      !Number.isFinite(timing.end) ||
+      timing.start < 0 ||
+      timing.end < timing.start
+    )
+      throw new Error('Kokoro returned invalid phoneme timing evidence');
+    if (!timing.phoneme.trim()) {
+      if (timing.end !== timing.start)
+        throw new Error('Kokoro whitespace timing must be zero-width');
+      if (start !== null) {
+        groups.push({ startMs: Math.round(start), endMs: Math.round(end) });
+        start = null;
+      }
+      continue;
+    }
+    if (timing.end <= timing.start)
+      throw new Error('Kokoro returned zero-width phoneme timing');
+    start ??= timing.start * 1000;
+    end = timing.end * 1000;
+  }
+  if (start !== null)
+    groups.push({ startMs: Math.round(start), endMs: Math.round(end) });
+  if (groups.length !== words.length)
+    throw new Error(
+      `Kokoro timing evidence covers ${groups.length} phoneme groups but transcript has ${words.length} words`,
+    );
+  return words.map((word, index) => ({ ...groups[index]!, word }));
+}
+
+function validateKokoroAlignment(alignment: AudioAlignment): void {
+  if (alignment.source !== 'provider' || !alignment.verified)
+    throw new Error('Kokoro alignment must be provider-verified');
+  validateWordTimings(alignment);
+}
+
+export async function synthesizeKokoroTts(
+  root: string,
+  options: KokoroTtsOptions,
+): Promise<TtsResult> {
+  assertExactTranscript(options.approvedText, options.transcript);
+  if (!options.voice.trim()) throw new Error('Kokoro voice is required');
+  const requestId =
+    options.requestId ??
+    sha256(
+      `kokoro-onnx\n${options.modelPath}\n${options.voicesPath}\n${options.voice}\n${options.language ?? 'en-us'}\n${options.speed ?? 1}\n${options.transcript}`,
+    ).slice(0, 24);
+  const audioPath = options.outputPath ?? 'audio/narration.wav';
+  const alignmentPath = options.alignmentPath ?? 'audio/alignment.json';
+  const receiptPath = `receipts/tts-${requestId}.json`;
+  const previous = await readReceipt(root, requestId);
+  if (
+    previous?.status === 'persisted' &&
+    previous.audioSha256 &&
+    previous.durationMs !== undefined
+  ) {
+    const alignment = JSON.parse(
+      await readFile(
+        await resolveContained(root, previous.alignmentPath ?? alignmentPath),
+        'utf8',
+      ),
+    ) as AudioAlignment;
+    validateKokoroAlignment(alignment);
+    return {
+      requestId,
+      audioPath: previous.audioPath,
+      audioSha256: previous.audioSha256,
+      durationMs: previous.durationMs,
+      mimeType: 'audio/wav',
+      alignment,
+      alignmentPath: previous.alignmentPath ?? alignmentPath,
+      receiptPath,
+    };
+  }
+  const tempRoot = await mkdtemp(join(tmpdir(), 'storyframe-kokoro-'));
+  const tempAudio = join(tempRoot, 'narration.wav');
+  try {
+    const run = await runKokoro(
+      options.pythonExecutable,
+      options.modelPath,
+      options.voicesPath,
+      options.voice,
+      options.transcript,
+      tempAudio,
+      options.language ?? 'en-us',
+      options.speed ?? 1,
+      options.environment,
+    );
+    if (run.sampleRate !== 24_000)
+      throw new Error(
+        `Kokoro sample rate must be 24000 Hz, got ${run.sampleRate}`,
+      );
+    const bytes = await readFile(tempAudio);
+    const durationMs = parseWavDuration(bytes);
+    const audioSha256 = sha256(bytes);
+    const alignment: AudioAlignment = {
+      version: 1,
+      transcriptSha256: sha256(options.transcript),
+      audioSha256,
+      durationMs,
+      source: 'provider',
+      verified: true,
+      words: groupKokoroTimings(options.transcript, run.timings),
+    };
+    validateKokoroAlignment(alignment);
+    await writeNewFile(root, audioPath, bytes);
+    await writeNewFile(
+      root,
+      alignmentPath,
+      Buffer.from(
+        JSON.stringify(
+          {
+            ...alignment,
+            provider: 'kokoro-onnx',
+            modelPath: options.modelPath,
+            voice: options.voice,
+            sampleRate: run.sampleRate,
+            phonemeTimings: run.timings,
+            normalization:
+              'Kokoro phoneme runs are grouped at whitespace boundaries and labeled with the exact transcript tokens; no timing interpolation is used.',
+          },
+          null,
+          2,
+        ) + '\n',
+      ),
+    );
+    await writeReceipt(root, requestId, {
+      version: 1,
+      requestId,
+      provider: 'kokoro-onnx',
+      model: 'kokoro-onnx',
+      voiceName: options.voice,
+      transcriptSha256: sha256(options.transcript),
+      status: 'persisted',
+      audioPath,
+      audioSha256,
+      durationMs,
+      alignmentPath,
+      phonemeTimings: run.timings,
+      recordedAt: new Date().toISOString(),
+    });
+    return {
+      requestId,
+      audioPath,
+      audioSha256,
+      durationMs,
+      mimeType: 'audio/wav',
+      alignment,
+      alignmentPath,
+      receiptPath,
+    };
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
   }
 }
 

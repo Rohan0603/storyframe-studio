@@ -42,7 +42,7 @@ Read `README.md`, `docs/architecture.md`, `docs/production-contract.md`, and the
 5. Build **all recurring character, prop, environment and art-style references before full scene generation**; hash/lock the approved reference set.
 6. Generate each still through the explicitly selected, verified provider using its shot contract and locked references; persist output bytes and provenance.
 7. Inspect **actual pixels** of each candidate against the precise spoken beat and continuity references; approve, reject or mark unknown with written evidence. Prompts, filenames and image metadata are not proof of correctness.
-8. Produce expressive Gemini narration using exact approved text; measure audio and align word/phrase/segment timestamps. Lock voices for recurring speakers.
+8. Produce narration using the explicitly selected Gemini or local Kokoro provider with exact approved text; measure audio and align word/phrase/segment timestamps. Lock voices for recurring speakers.
 9. Reconcile actual audio timings with the shot timeline, then make synchronized SRT/captions.
 10. Render stills + audio via FFmpeg, independently verify technical and creative quality, and prepare a YouTube-readiness report.
 11. Require distinct, explicit release approval. Never assume tests or a technically successful render imply publish permission.
@@ -71,7 +71,7 @@ A scene must not pass release QA when its image is missing, off-story, continuit
 
 ## Audio, research and rights
 
-- Gemini TTS requires current model, voice, quota and billing verification, plus explicit owner authorization for charged runs. Keep API keys in local secret storage/environment only, never Markdown, output logs or commits.
+- Gemini TTS requires current model, voice, quota and billing verification, plus explicit owner authorization for charged runs. Local Kokoro runs through the configured CPU bridge without network billing. Keep API keys in local secret storage/environment only, never Markdown, output logs or commits.
 - TTS spoken text must match the script exactly; performance directions must not be inserted into the transcript as spoken words.
 - Caption and visual timing derive from verified actual audio alignment. A proportional/average estimate must be labeled provisional and cannot pass final sync QA.
 - Use research sources with URLs/dates/claim IDs and status; do not convert low-confidence assertions into factual narration.
