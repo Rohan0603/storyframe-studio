@@ -23,6 +23,7 @@
     "mode": { "enum": ["guided", "auto"] },
     "script": { "$ref": "#/$defs/hashedPath" },
     "referenceBundle": { "$ref": "#/$defs/hashedPath" },
+    "referenceBible": { "$ref": "#/$defs/referenceBibleManifest" },
     "narration": {
       "type": "object",
       "required": [
@@ -180,6 +181,103 @@
               "items": { "type": "string" },
               "minItems": 1
             }
+          }
+        },
+        "referenceBinding": { "$ref": "#/$defs/referenceBinding" }
+      }
+    },
+    "referenceImage": {
+      "type": "object",
+      "required": ["path", "sha256", "mimeType", "approved"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "mimeType": {
+          "enum": ["image/png", "image/jpeg", "image/gif", "image/webp"]
+        },
+        "approved": { "type": "boolean" }
+      }
+    },
+    "referenceEntry": {
+      "type": "object",
+      "required": ["id", "kind", "name", "visualCanon", "image"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "enum": ["character", "prop", "environment", "style"] },
+        "name": { "type": "string" },
+        "visualCanon": { "type": "string" },
+        "canonEntityId": { "type": "string" },
+        "image": { "$ref": "#/$defs/referenceImage" }
+      }
+    },
+    "referenceBible": {
+      "type": "object",
+      "required": [
+        "bundleId",
+        "storyRevisionId",
+        "storyRevisionSha256",
+        "canonSha256",
+        "entries"
+      ],
+      "properties": {
+        "bundleId": { "type": "string" },
+        "storyRevisionId": { "type": "string" },
+        "storyRevisionSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "canonSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/referenceEntry" }
+        }
+      }
+    },
+    "referenceBibleManifest": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "freezeSha256",
+        "storyRevisionId",
+        "storyRevisionSha256",
+        "canonSha256",
+        "status"
+      ],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "freezeSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "storyRevisionId": { "type": "string" },
+        "storyRevisionSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "canonSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "status": { "enum": ["draft", "frozen", "stale"] }
+      }
+    },
+    "referenceBinding": {
+      "type": "object",
+      "required": [
+        "freezeSha256",
+        "storyRevisionId",
+        "referenceIds",
+        "referenceHashes"
+      ],
+      "properties": {
+        "freezeSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "storyRevisionId": { "type": "string" },
+        "referenceIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "referenceHashes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           }
         }
       }

@@ -51,7 +51,12 @@ The distinction between a narration **beat** and a visual **shot** is mandatory:
       "props": ["chest", "blue-crystal"],
       "environment": "stone-room",
       "composition": "Medium close-up with hands and crystal visibly connected.",
-      "forbidden": ["missing crystal", "different room", "extra people", "on-image captions"],
+      "forbidden": [
+        "missing crystal",
+        "different room",
+        "extra people",
+        "on-image captions"
+      ],
       "image": {
         "path": "images/shot-003a.png",
         "sha256": null,
@@ -89,9 +94,21 @@ The strings marked `PLACEHOLDER` are not valid actual SHA-256 values and are inc
 
 ## Planning density
 
-Cinematic default **14–18 stills per narration minute**; reflective ~12/min; energetic ~21/min. These are heuristic *planning bands*, adjusted by narrative beats, dwell time, source audio and generation quota. No arbitrary minimum independent of story content. A new shot must add visual storytelling value.
+Cinematic default **14–18 stills per narration minute**; reflective ~12/min; energetic ~21/min. These are heuristic _planning bands_, adjusted by narrative beats, dwell time, source audio and generation quota. No arbitrary minimum independent of story content. A new shot must add visual storytelling value.
 
 ## Revision scope
+
+### Frozen visual reference bible
+
+The optional `referenceBible` manifest points to a JSON bundle containing
+stable IDs for characters, props, environments and style, textual visual-canon
+descriptions, and approved local image files. The image file's actual bytes
+must match its SHA-256 and supported signature; a prompt, filename, extension,
+or textual description is never image evidence. The freeze hash is bound to
+the story revision, normalized script hash and textual canon hash. A shot may
+carry a `referenceBinding` with the freeze hash, story revision ID, referenced
+IDs and their exact image hashes. Missing, changed, unsafe, stale or
+canon-drifting references fail closed and invalidate dependent shot evidence.
 
 - Script changes invalidate affected beat map, prompts, narration, alignment, scene timings and corresponding reviews; record exactly what is retained.
 - Character/prop reference updates invalidate matching image prompts, images and visual QA.

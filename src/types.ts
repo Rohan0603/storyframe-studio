@@ -18,6 +18,7 @@ export interface Episode {
   mode: EpisodeMode;
   script: { path: string; sha256: string; approved: boolean };
   referenceBundle: { path: string; sha256: string };
+  referenceBible?: ReferenceBibleManifest;
   narration: {
     provider: string;
     textSha256: string;
@@ -39,6 +40,42 @@ export interface Episode {
     creativeApproval: string | null;
     publishAuthorization: string | null;
   };
+}
+
+export type ReferenceKind = 'character' | 'prop' | 'environment' | 'style';
+
+export interface ReferenceImage {
+  path: string;
+  sha256: string;
+  mimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+  approved: boolean;
+}
+
+export interface ReferenceEntry {
+  id: string;
+  kind: ReferenceKind;
+  name: string;
+  visualCanon: string;
+  image: ReferenceImage;
+  canonEntityId?: string;
+}
+
+export interface ReferenceBible {
+  bundleId: string;
+  storyRevisionId: string;
+  storyRevisionSha256: string;
+  canonSha256: string;
+  entries: ReferenceEntry[];
+}
+
+export interface ReferenceBibleManifest {
+  path: string;
+  sha256: string;
+  freezeSha256: string;
+  storyRevisionId: string;
+  storyRevisionSha256: string;
+  canonSha256: string;
+  status: 'draft' | 'frozen' | 'stale';
 }
 
 export interface BeatCandidate {
@@ -93,6 +130,12 @@ export interface Shot {
     status: 'pending' | 'pass' | 'fail' | 'unknown';
     reviewedImageSha256: string | null;
     notes: string;
+  };
+  referenceBinding?: {
+    freezeSha256: string;
+    storyRevisionId: string;
+    referenceIds: string[];
+    referenceHashes: Record<string, string>;
   };
 }
 

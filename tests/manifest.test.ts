@@ -5,6 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validateEpisode } from '../src/manifest.js';
+import {
+  freezeReferenceBible,
+  referenceSha256,
+} from '../src/reference-bible.js';
 import { createScriptRevision } from '../src/story-layer.js';
 import type { Episode } from '../src/types.js';
 
@@ -177,5 +181,50 @@ describe('episode validation', () => {
     episode.script.sha256 = sha256('# outside\n');
     const result = await validateEpisode(episode, root);
     expect(result.errors.join('\n')).toMatch(/escapes|outside/i);
+  });
+
+  it('binds the reference manifest fields to the loaded frozen bundle', async () => {
+    const { root, episode } = await fixture();
+    const bytes = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    );
+    await writeFile(join(root, 'references', 'traveler.png'), bytes);
+    const bible = {
+      bundleId: 'bible-01',
+      storyRevisionId: 'script-revision-01',
+      storyRevisionSha256: 'a'.repeat(64),
+      canonSha256: 'b'.repeat(64),
+      entries: [
+        {
+          id: 'traveler',
+          kind: 'character' as const,
+          name: 'Traveler',
+          visualCanon: 'Amber coat and short dark hair.',
+          image: {
+            path: 'references/traveler.png',
+            sha256: referenceSha256(bytes),
+            mimeType: 'image/png' as const,
+            approved: true,
+          },
+        },
+      ],
+    };
+    const bibleText = JSON.stringify(bible);
+    await writeFile(join(root, 'references', 'bible.json'), bibleText);
+    episode.referenceBible = {
+      path: 'references/bible.json',
+      sha256: referenceSha256(bibleText),
+      freezeSha256: freezeReferenceBible(bible),
+      storyRevisionId: bible.storyRevisionId,
+      storyRevisionSha256: bible.storyRevisionSha256,
+      canonSha256: bible.canonSha256,
+      status: 'frozen',
+    };
+    let result = await validateEpisode(episode, root);
+    expect(result.valid).toBe(true);
+    episode.referenceBible.storyRevisionId = 'script-revision-02';
+    result = await validateEpisode(episode, root);
+    expect(result.errors.join('\n')).toMatch(/manifest binding/);
   });
 });
