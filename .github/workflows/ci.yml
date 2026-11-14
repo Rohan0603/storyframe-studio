@@ -24,10 +24,10 @@ jobs:
       - run: npm run typecheck
       - name: Emit formatted snapshots (temporary branch-only validation)
         run: |
-          npx prettier --write schemas/episode.schema.json src/producer.ts tests/producer.test.ts >/dev/null
+          npx prettier --write schemas/episode.schema.json src/producer.ts src/cli.ts tests/producer.test.ts >/dev/null
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
-          for (const path of ['schemas/episode.schema.json', 'src/producer.ts', 'tests/producer.test.ts']) {
+          for (const path of ['schemas/episode.schema.json', 'src/producer.ts', 'src/cli.ts', 'tests/producer.test.ts']) {
             console.log('STORYFRAME_FORMAT ' + JSON.stringify({path,content:readFileSync(path,'utf8')}));
           }
           NODE
