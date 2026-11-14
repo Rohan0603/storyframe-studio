@@ -31,6 +31,7 @@ export interface Episode {
     canon: StoryCanon;
     beatCandidates: BeatCandidate[];
   };
+  alignment?: AlignmentPlan;
   beats: Beat[];
   shots: Shot[];
   release: {
@@ -54,6 +55,22 @@ export interface Beat {
   scriptStartChar: number;
   scriptEndChar: number;
   sourceClaimIds: string[];
+  scriptRevisionId?: string;
+  scriptRevisionSha256?: string;
+}
+export type VisualPurpose = 'action' | 'establishing' | 'transition' | 'hold';
+
+export interface AlignmentPlan {
+  scriptRevisionId: string;
+  scriptSha256: string;
+  scriptRevisionSha256?: string;
+  timingStatus: 'provisional' | 'verified';
+  audioDurationMs: number | null;
+  density: {
+    style: 'reflective' | 'cinematic' | 'energetic' | 'custom';
+    targetMin: number;
+    targetMax: number;
+  };
 }
 export interface Shot {
   id: string;
@@ -66,6 +83,11 @@ export interface Shot {
   environment: string;
   composition: string;
   forbidden: string[];
+  visualPurpose?: VisualPurpose;
+  intentionalHold?: {
+    reason: string;
+    relatedBeatIds: string[];
+  };
   image: { path: string; sha256: string | null; status: StageStatus };
   semanticReview: {
     status: 'pending' | 'pass' | 'fail' | 'unknown';

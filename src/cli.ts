@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -11,6 +11,7 @@ import { validateEpisode, sha256 } from './manifest.js';
 import { createEpisode } from './scaffold.js';
 import { resolveContained } from './paths.js';
 import type { Episode } from './types.js';
+import { densityNote, storyboardMarkdown } from './alignment.js';
 
 async function load(root: string): Promise<Episode> {
   return JSON.parse(
@@ -30,6 +31,8 @@ async function inputHashes(
   );
   const dependencies = JSON.stringify({
     narration: episode.narration,
+    alignment: episode.alignment,
+    story: episode.story,
     beats: episode.beats,
     shots: episode.shots,
   });
@@ -44,7 +47,7 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|plan|validate|resume|render> <episode-root> [episode-id]',
+      'usage: storyframe <new|plan|align|validate|resume|render> <episode-root> [episode-id]',
     );
   if (command === 'new') {
     await createEpisode(root, episodeId);
@@ -62,17 +65,22 @@ export async function runCli(args: string[]): Promise<number> {
     );
   const hashes = await inputHashes(root, episode);
   if (command === 'validate') return 0;
-  if (command === 'plan') {
+  if (command === 'plan' || command === 'align') {
+    await writeFile(
+      join(root, 'storyboard.md'),
+      `${storyboardMarkdown(episode)}\n${densityNote(episode)}\n`,
+    );
     const existing = await readCheckpoints(root);
+    const stage = command === 'align' ? 'alignment' : 'plan';
     const attempt =
       Math.max(
         0,
         ...existing
-          .filter((checkpoint) => checkpoint.stage === 'plan')
+          .filter((checkpoint) => checkpoint.stage === stage)
           .map((checkpoint) => checkpoint.attempt),
       ) + 1;
     await appendCheckpoint(root, {
-      stage: 'plan',
+      stage,
       attempt,
       status: 'approved',
       inputHashes: hashes,
