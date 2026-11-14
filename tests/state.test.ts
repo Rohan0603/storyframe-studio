@@ -73,4 +73,21 @@ describe('offline state', () => {
     await resumeCheckpoints(root, { script: 'new' });
     await expect(readCheckpoints(root)).resolves.toHaveLength(2);
   });
+
+  it('stales legacy checkpoints when a new dependency key appears', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-legacy-state-'));
+    await appendCheckpoint(root, {
+      stage: 'plan',
+      attempt: 1,
+      status: 'approved',
+      inputHashes: { script: 'same' },
+      outputHashes: {},
+      recordedAt: new Date().toISOString(),
+    });
+    const result = await resumeCheckpoints(root, {
+      script: 'same',
+      episodeDependencies: 'new',
+    });
+    expect(result[0]?.status).toBe('stale');
+  });
 });

@@ -1,5 +1,5 @@
 import { realpath } from 'node:fs/promises';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 export function assertSafeRelativePath(
   value: unknown,
@@ -25,7 +25,18 @@ export async function resolveContained(
   assertSafeRelativePath(relativePath, 'path');
   const rootReal = await realpath(root);
   const candidate = resolve(rootReal, ...relativePath.split('/'));
-  const existing = await realpath(candidate).catch(() => candidate);
+  let existing = candidate;
+  while (true) {
+    try {
+      existing = await realpath(existing);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      const parent = dirname(existing);
+      if (parent === existing) throw error;
+      existing = parent;
+    }
+  }
   const rel = relative(rootReal, existing);
   if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
     throw new Error(`path escapes episode root: ${relativePath}`);

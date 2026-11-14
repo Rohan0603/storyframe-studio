@@ -53,10 +53,14 @@ export async function resumeCheckpoints(
   const checkpoints = await readCheckpoints(root);
   const resumed: Checkpoint[] = [];
   for (const checkpoint of checkpoints) {
+    const keys = new Set([
+      ...Object.keys(checkpoint.inputHashes),
+      ...Object.keys(currentInputHashes),
+    ]);
     const stale =
       checkpoint.status === 'approved' &&
-      Object.entries(checkpoint.inputHashes).some(
-        ([key, value]) => currentInputHashes[key] !== value,
+      [...keys].some(
+        (key) => checkpoint.inputHashes[key] !== currentInputHashes[key],
       );
     const next = stale
       ? {

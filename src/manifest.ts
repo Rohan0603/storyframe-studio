@@ -122,6 +122,14 @@ export async function validateEpisode(
         `image path is unsafe for ${shot.id}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+    if (shot.image.sha256 !== null)
+      await verifyFile(
+        root,
+        shot.image.path,
+        shot.image.sha256,
+        `image ${shot.id}`,
+        errors,
+      );
     if (
       shot.semanticReview.status === 'pass' &&
       shot.semanticReview.reviewedImageSha256 !== shot.image.sha256
