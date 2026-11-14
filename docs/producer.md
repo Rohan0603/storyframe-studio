@@ -37,6 +37,9 @@ The `producer` command supports:
 | `approve` | Append an explicit reviewer + notes, hash-bound to current inputs |
 | `verify-render` | FFprobe a real MP4, verify H.264/AAC and duration, bind its SHA-256 |
 | `record-review` | Import actual human QA evidence from local JSON |
+| `create-captions` | Generate non-overwriting SRT from verified word alignment |
+| `render` | Render approved stills/narration via FFmpeg, then verify output with FFprobe |
+| `run` | In explicitly started Auto mode, produce SRT/render only when every preceding stage has real accepted evidence |
 | `package` | Write a nonpublishable YouTube metadata package after all QA gates |
 
 Example render verification:
@@ -44,6 +47,8 @@ Example render verification:
 ```powershell
 node dist/src/cli.js producer "C:\path\to\episode" verify-render output/video.mp4
 ```
+
+Guided use: after approving the narration stage, run `producer <root> create-captions`, review and approve the captions stage, then `producer <root> render`. Auto use: after starting in `auto` mode and preparing all upstream assets, an explicit `producer <root> run` creates SRT and renders MP4 if the verified inputs and limits permit. It stops at human final QA and cannot call native `image_gen`, invoke cloud TTS or publish.
 
 QA must be written and checked independently after listening to and watching
 the actual final video. A locally written review document is required for
