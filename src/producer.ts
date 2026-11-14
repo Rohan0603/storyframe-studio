@@ -69,7 +69,10 @@ export interface ProducerReview {
   reviewer: string;
   notes: string;
   renderSha256: string;
-  checks: Record<QaCheck, { status: 'pass' | 'fail' | 'unknown'; notes: string }>;
+  checks: Record<
+    QaCheck,
+    { status: 'pass' | 'fail' | 'unknown'; notes: string }
+  >;
 }
 
 export interface ProducerRender {
@@ -155,7 +158,9 @@ export function startProducer(
     policy.maxImageAttemptsPerShot < 1 ||
     policy.maxImageAttemptsPerShot > 10
   )
-    throw new Error('producer start cannot authorize generation charges or publishing');
+    throw new Error(
+      'producer start cannot authorize generation charges or publishing',
+    );
   boundedPolicy(policy.maxShots, policy.maxDurationMs);
   episode.production = {
     version: 1,
@@ -178,7 +183,8 @@ export function stageFingerprint(
     episode.script.sha256,
     episode.story,
   ];
-  if (rank >= 1) inputs.push(episode.script.approved, episode.narration.textSha256);
+  if (rank >= 1)
+    inputs.push(episode.script.approved, episode.narration.textSha256);
   if (rank >= 2)
     inputs.push(
       episode.beats,
@@ -195,8 +201,7 @@ export function stageFingerprint(
         intentionalHold: shot.intentionalHold,
       })),
     );
-  if (rank >= 3)
-    inputs.push(episode.referenceBundle, episode.referenceBible);
+  if (rank >= 3) inputs.push(episode.referenceBundle, episode.referenceBible);
   if (rank >= 4)
     inputs.push(
       episode.shots.map((shot) => ({
@@ -216,10 +221,7 @@ export function stageFingerprint(
   if (rank >= 6) inputs.push(episode.narration.captionsPath);
   if (rank >= 7) inputs.push(episode.production?.render);
   if (rank >= 8)
-    inputs.push(
-      episode.production?.review,
-      episode.release.creativeApproval,
-    );
+    inputs.push(episode.production?.review, episode.release.creativeApproval);
   return sha256(JSON.stringify(inputs));
 }
 
@@ -241,7 +243,9 @@ function assertProducer(episode: Episode): ProducerSession {
     policy.budgetUsd !== 0 ||
     policy.maxCloudTtsRequests !== 0
   )
-    throw new Error('unverified external generation authorization is not supported');
+    throw new Error(
+      'unverified external generation authorization is not supported',
+    );
   boundedPolicy(policy.maxShots, policy.maxDurationMs);
   return session;
 }
@@ -257,7 +261,10 @@ async function approvedAlignment(
     !episode.narration.audioSha256 ||
     !episode.narration.audioDurationMs
   )
-    return { alignment: null, reasons: ['narration needs verified audio and timing'] };
+    return {
+      alignment: null,
+      reasons: ['narration needs verified audio and timing'],
+    };
   try {
     const source = await readFile(
       await resolveContained(root, episode.narration.alignmentPath),
@@ -303,12 +310,16 @@ async function stageEvidence(
   switch (stage) {
     case 'research':
       if (!episode.story) reasons.push('source-backed story is missing');
-      else if (episode.story.sourceClaims.some((claim) => claim.status !== 'verified'))
+      else if (
+        episode.story.sourceClaims.some((claim) => claim.status !== 'verified')
+      )
         reasons.push('unresolved or disputed factual claim');
       break;
     case 'script':
       if (!episode.script.approved || !episode.story)
-        reasons.push('approved original script and story revision are required');
+        reasons.push(
+          'approved original script and story revision are required',
+        );
       break;
     case 'beat-map':
       if (!episode.beats.length || !episode.shots.length || !episode.alignment)
@@ -329,7 +340,9 @@ async function stageEvidence(
           !shot.semanticReview.notes.trim() ||
           !shot.referenceBinding
         )
-          reasons.push('shot ' + shot.id + ' lacks approved actual-pixel story QA');
+          reasons.push(
+            'shot ' + shot.id + ' lacks approved actual-pixel story QA',
+          );
       }
       break;
     case 'narration':
@@ -376,7 +389,9 @@ async function stageEvidence(
             reasons.push('render verification has unsupported stream settings');
           if (
             episode.narration.audioDurationMs &&
-            Math.abs(session.render.durationMs - episode.narration.audioDurationMs) > 500
+            Math.abs(
+              session.render.durationMs - episode.narration.audioDurationMs,
+            ) > 500
           )
             reasons.push('render duration does not match narration');
         } catch {
@@ -385,7 +400,10 @@ async function stageEvidence(
       }
       break;
     case 'final-qa': {
-      if (!session.review || session.review.renderSha256 !== session.render?.sha256)
+      if (
+        !session.review ||
+        session.review.renderSha256 !== session.render?.sha256
+      )
         reasons.push('independent QA is missing or stale for render');
       else {
         if (!session.review.reviewer.trim() || !session.review.notes.trim())
@@ -414,7 +432,9 @@ export async function assessProducer(
   let stopped = false;
   for (const stage of PRODUCER_STAGES) {
     const fingerprint = stageFingerprint(episode, stage);
-    const recent = [...session.approvals].reverse().find((item) => item.stage === stage);
+    const recent = [...session.approvals]
+      .reverse()
+      .find((item) => item.stage === stage);
     const reasons = stopped
       ? ['preceding production stage has not been accepted']
       : validation.valid
@@ -457,14 +477,17 @@ export async function approveProducerStage(
   const report = await assessProducer(root, episode);
   const step = report.stages.find((item) => item.stage === stage);
   const blockers = step?.reasons.filter(
-    (reason) => reason !== 'approval is stale for changed upstream dependencies',
+    (reason) =>
+      reason !== 'approval is stale for changed upstream dependencies',
   );
   if (
     !step ||
     blockers?.length ||
     (step.status !== 'needs-review' && step.status !== 'stale')
   )
-    throw new Error('producer stage cannot be approved without current evidence');
+    throw new Error(
+      'producer stage cannot be approved without current evidence',
+    );
   session.approvals.push({
     stage,
     fingerprint: step.fingerprint,
@@ -492,7 +515,9 @@ export async function recordProducerReview(
   for (const check of QA_CHECKS) {
     const item = review.checks?.[check];
     if (!item || item.status !== 'pass' || !item.notes?.trim())
-      throw new Error('QA gate must include independently recorded evidence: ' + check);
+      throw new Error(
+        'QA gate must include independently recorded evidence: ' + check,
+      );
   }
   session.review = review;
   episode.release.productionQAPassed = false;
@@ -515,15 +540,22 @@ function probeRender(path: string): Promise<{
     );
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
     child.once('error', reject);
     child.once('close', (code) => {
       if (code !== 0)
         reject(new Error('FFprobe failed: ' + stderr.slice(0, 300)));
       else {
-        try { resolve(JSON.parse(stdout)); }
-        catch { reject(new Error('FFprobe did not return JSON')); }
+        try {
+          resolve(JSON.parse(stdout));
+        } catch {
+          reject(new Error('FFprobe did not return JSON'));
+        }
       }
     });
   });
@@ -573,10 +605,17 @@ export async function generateProducerCaptions(
   path = 'audio/producer.srt',
 ): Promise<string> {
   const report = await assessProducer(root, episode);
-  if (report.stages.find((step) => step.stage === 'narration')?.status !== 'approved')
-    throw new Error('captions require accepted, verified narration and prior stages');
+  if (
+    report.stages.find((step) => step.stage === 'narration')?.status !==
+    'approved'
+  )
+    throw new Error(
+      'captions require accepted, verified narration and prior stages',
+    );
   if (episode.narration.captionsPath)
-    throw new Error('caption path is already recorded; do not overwrite accepted captions');
+    throw new Error(
+      'caption path is already recorded; do not overwrite accepted captions',
+    );
   const verified = await approvedAlignment(root, episode);
   if (!verified.alignment)
     throw new Error('verified audio alignment is required before captions');
@@ -591,10 +630,17 @@ export async function generateProducerRender(
   path = 'output/producer-video.mp4',
 ): Promise<ProducerRender> {
   const report = await assessProducer(root, episode);
-  if (report.stages.find((step) => step.stage === 'captions')?.status !== 'approved')
-    throw new Error('render requires accepted, synchronized captions and prior stages');
+  if (
+    report.stages.find((step) => step.stage === 'captions')?.status !==
+    'approved'
+  )
+    throw new Error(
+      'render requires accepted, synchronized captions and prior stages',
+    );
   if (episode.production?.render)
-    throw new Error('producer render already exists; no silent overwrite or retry');
+    throw new Error(
+      'producer render already exists; no silent overwrite or retry',
+    );
   const result = await renderStillEpisode(root, episode, { outputPath: path });
   await recordProducerRender(root, episode, result.outputPath);
   const render = episode.production?.render;
@@ -607,12 +653,15 @@ export async function runAutoProducer(
   episode: Episode,
 ): Promise<ProducerReport> {
   if (episode.mode !== 'auto')
-    throw new Error('auto run is available only after explicitly starting Auto mode');
+    throw new Error(
+      'auto run is available only after explicitly starting Auto mode',
+    );
   let report = await assessProducer(root, episode);
   if (
     report.nextStage === 'captions' &&
     !episode.narration.captionsPath &&
-    report.stages.find((step) => step.stage === 'narration')?.status === 'approved'
+    report.stages.find((step) => step.stage === 'narration')?.status ===
+      'approved'
   ) {
     await generateProducerCaptions(root, episode);
     await saveProducerEpisode(root, episode);
@@ -620,7 +669,8 @@ export async function runAutoProducer(
   }
   if (
     report.nextStage === 'render' &&
-    report.stages.find((step) => step.stage === 'captions')?.status === 'approved'
+    report.stages.find((step) => step.stage === 'captions')?.status ===
+      'approved'
   ) {
     await generateProducerRender(root, episode);
     await saveProducerEpisode(root, episode);
