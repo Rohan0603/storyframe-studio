@@ -19,7 +19,7 @@ describe('CLI', () => {
   it('fails explicitly for render', async () => {
     const root = await mkdtemp(join(tmpdir(), 'storyframe-cli-render-'));
     await expect(runCli(['render', root])).rejects.toThrow(
-      /not implemented|provider/i,
+      /episode.json|ENOENT/i,
     );
   });
 

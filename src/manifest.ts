@@ -85,6 +85,17 @@ export async function validateEpisode(
     errors.push('referenceBundle.sha256 must be a SHA-256');
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
     errors.push('narration.textSha256 must be a SHA-256');
+  if (
+    episode?.narration?.audioSha256 !== undefined &&
+    !HASH.test(episode.narration.audioSha256)
+  )
+    errors.push('narration.audioSha256 must be a SHA-256');
+  if (
+    episode?.narration?.audioDurationMs !== undefined &&
+    (!Number.isInteger(episode.narration.audioDurationMs) ||
+      episode.narration.audioDurationMs <= 0)
+  )
+    errors.push('narration.audioDurationMs must be a positive integer');
   if (episode?.script)
     await verifyFile(
       root,
@@ -185,6 +196,17 @@ export async function validateEpisode(
       } catch (error) {
         errors.push(
           `${label} path is unsafe: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    if (episode.narration.audioSha256) {
+      try {
+        const audio = await resolveContained(root, episode.narration.audioPath);
+        if (sha256(await readFile(audio)) !== episode.narration.audioSha256)
+          errors.push('narration audio hash mismatch');
+      } catch (error) {
+        errors.push(
+          `narration audio is unsafe or unavailable: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -317,26 +339,53 @@ export async function validateEpisode(
     if (shot.image.sha256 !== null && !HASH.test(shot.image.sha256))
       errors.push(`invalid image hash for ${shot.id}`);
     const imageStatuses = [
-      'pending', 'ready', 'running', 'needs-review', 'approved', 'rejected',
-      'blocked', 'failed', 'stale',
+      'pending',
+      'ready',
+      'running',
+      'needs-review',
+      'approved',
+      'rejected',
+      'blocked',
+      'failed',
+      'stale',
     ];
     if (!imageStatuses.includes(shot.image.status))
       errors.push(`invalid image status for ${shot.id}`);
     if (shot.image.sha256 !== null) {
       const provenance = shot.image.provenance;
-      if (!provenance)
-        errors.push(`image ${shot.id} is missing provenance`);
+      if (!provenance) errors.push(`image ${shot.id} is missing provenance`);
       else {
-        if (provenance.tool !== 'codex-desktop.image_gen' || !HASH.test(provenance.packetSha256) || !provenance.attemptId.trim())
+        if (
+          provenance.tool !== 'codex-desktop.image_gen' ||
+          !HASH.test(provenance.packetSha256) ||
+          !provenance.attemptId.trim()
+        )
           errors.push(`image ${shot.id} has invalid provenance identity`);
-        if (!['persisted', 'reconciled'].includes(provenance.receiptStatus) || !Number.isInteger(provenance.width) || !Number.isInteger(provenance.height) || provenance.width < 1 || provenance.height < 1)
-          errors.push(`image ${shot.id} has invalid provenance receipt or dimensions`);
+        if (
+          !['persisted', 'reconciled'].includes(provenance.receiptStatus) ||
+          !Number.isInteger(provenance.width) ||
+          !Number.isInteger(provenance.height) ||
+          provenance.width < 1 ||
+          provenance.height < 1
+        )
+          errors.push(
+            `image ${shot.id} has invalid provenance receipt or dimensions`,
+          );
       }
     }
-    if (!['pending', 'pass', 'fail', 'unknown'].includes(shot.semanticReview.status))
+    if (
+      !['pending', 'pass', 'fail', 'unknown'].includes(
+        shot.semanticReview.status,
+      )
+    )
       errors.push(`invalid semantic review status for ${shot.id}`);
-    if (shot.semanticReview.status === 'pass' && shot.semanticReview.pixelsDecoded !== true)
-      errors.push(`passing semantic review requires decoded pixels for ${shot.id}`);
+    if (
+      shot.semanticReview.status === 'pass' &&
+      shot.semanticReview.pixelsDecoded !== true
+    )
+      errors.push(
+        `passing semantic review requires decoded pixels for ${shot.id}`,
+      );
     try {
       await resolveContained(root, shot.image.path);
     } catch (error) {
