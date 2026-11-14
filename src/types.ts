@@ -1,4 +1,5 @@
 import type { ScriptRevision, SourceClaim, StoryCanon } from './story-layer.js';
+import type { ProducerSession } from './producer.js';
 
 export type StageStatus =
   | 'pending'
@@ -43,6 +44,7 @@ export interface Episode {
     beatCandidates: BeatCandidate[];
   };
   alignment?: AlignmentPlan;
+  production?: ProducerSession;
   beats: Beat[];
   shots: Shot[];
   release: {
