@@ -145,6 +145,8 @@ export function validateClaimLedger(
   options: { factualRelease: boolean },
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
+  if (!Array.isArray(claims))
+    return { valid: false, errors: ['claim ledger must be an array'] };
   const ids = new Set<string>();
   for (const claim of claims) {
     if (!isStableId(claim.id)) errors.push(`claim ID is invalid: ${claim.id}`);
@@ -202,6 +204,13 @@ export function validateCanon(canon: StoryCanon): {
   errors: string[];
 } {
   const errors: string[] = [];
+  if (
+    !canon ||
+    !Array.isArray(canon.characters) ||
+    !Array.isArray(canon.props) ||
+    !Array.isArray(canon.observations)
+  )
+    return { valid: false, errors: ['canon has an invalid shape'] };
   const entities = new Map<string, CanonEntity>();
   for (const entity of [...canon.characters, ...canon.props]) {
     if (!isStableId(entity.id))

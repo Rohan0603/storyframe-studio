@@ -48,6 +48,7 @@ export async function validateEpisode(
   root: string,
 ): Promise<ValidationResult> {
   const errors: string[] = [];
+  let scriptText: string | null = null;
   if (!episode || typeof episode !== 'object')
     return { valid: false, errors: ['episode must be an object'] };
   if (!Array.isArray(episode.beats)) errors.push('beats must be an array');
@@ -76,6 +77,16 @@ export async function validateEpisode(
       'script',
       errors,
     );
+  if (episode?.script) {
+    try {
+      scriptText = await readFile(
+        await resolveContained(root, episode.script.path),
+        'utf8',
+      );
+    } catch {
+      scriptText = null;
+    }
+  }
   if (episode?.referenceBundle)
     await verifyFile(
       root,
@@ -144,7 +155,7 @@ export async function validateEpisode(
       );
     }
   }
-  for (const beat of episode?.beats ?? []) {
+  for (const beat of Array.isArray(episode?.beats) ? episode.beats : []) {
     if (!beat || typeof beat !== 'object') {
       errors.push('beat must be an object');
       continue;
@@ -158,15 +169,13 @@ export async function validateEpisode(
     )
       errors.push(`invalid script span for ${beat.id}`);
     if (
-      episode?.story &&
       Number.isInteger(beat.scriptStartChar) &&
       Number.isInteger(beat.scriptEndChar) &&
       beat.scriptStartChar >= 0 &&
-      beat.scriptEndChar <= episode.story.scriptRevision.text.length &&
-      episode.story.scriptRevision.text.slice(
-        beat.scriptStartChar,
-        beat.scriptEndChar,
-      ) !== beat.spokenText
+      scriptText !== null &&
+      beat.scriptEndChar <= scriptText.length &&
+      scriptText.slice(beat.scriptStartChar, beat.scriptEndChar) !==
+        beat.spokenText
     )
       errors.push(`spoken text mismatch for beat ${beat.id}`);
     if (episode?.story)
@@ -175,9 +184,13 @@ export async function validateEpisode(
           errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
-  for (const shot of episode?.shots ?? []) {
+  for (const shot of Array.isArray(episode?.shots) ? episode.shots : []) {
     if (!shot || typeof shot !== 'object') {
       errors.push('shot must be an object');
+      continue;
+    }
+    if (!Array.isArray(shot.beatIds) || !shot.image || !shot.semanticReview) {
+      errors.push(`shot ${shot.id ?? 'unknown'} has an invalid shape`);
       continue;
     }
     addId(errors, shotIds, shot.id, 'shot ID');
