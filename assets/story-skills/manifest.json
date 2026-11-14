@@ -1,0 +1,27 @@
+{
+  "upstream": {
+    "url": "https://github.com/danjdewhurst/story-skills",
+    "commit": "33085ccc3ceb94a6ff9362cf499091123cdfb30d",
+    "version": "0.25.0",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 Daniel Dewhurst"
+  },
+  "compatibility": {
+    "node": ">=20",
+    "codex": "Codex Desktop supplies the reviewed local skillRoot; adapter is offline-only"
+  },
+  "selectedSkills": [
+    "premise-workshop",
+    "research",
+    "plot-structure",
+    "character-management",
+    "worldbuilding",
+    "scene-craft",
+    "voice-style",
+    "revision-continuity",
+    "story-maintenance",
+    "series-continuity"
+  ],
+  "skillPath": "skills/<name>/SKILL.md",
+  "boundary": "local-adapter-only; no upstream runtime or publishing machinery is vendored"
+}

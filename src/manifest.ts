@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolveContained } from './paths.js';
 import { isStableId } from './ids.js';
+import { validateCanon, validateClaimLedger } from './story-layer.js';
 import type { Episode, ValidationResult } from './types.js';
 
 const HASH = /^[a-f0-9]{64}$/;
@@ -91,6 +92,29 @@ export async function validateEpisode(
           `${label} path is unsafe: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+    }
+  }
+  if (episode?.story) {
+    const claims = validateClaimLedger(episode.story.sourceClaims, {
+      factualRelease: episode.release?.productionQAPassed === true,
+    });
+    errors.push(...claims.errors);
+    errors.push(...validateCanon(episode.story.canon).errors);
+    for (const candidate of episode.story.beatCandidates) {
+      addId(errors, ids, candidate.id, 'beat candidate ID');
+      if (
+        candidate.scriptStartChar < 0 ||
+        candidate.scriptEndChar < candidate.scriptStartChar ||
+        candidate.scriptEndChar > episode.story.scriptRevision.text.length
+      )
+        errors.push(`invalid script span for beat candidate ${candidate.id}`);
+      else if (
+        episode.story.scriptRevision.text.slice(
+          candidate.scriptStartChar,
+          candidate.scriptEndChar,
+        ) !== candidate.spokenText
+      )
+        errors.push(`spoken text mismatch for beat candidate ${candidate.id}`);
     }
   }
   for (const beat of episode?.beats ?? []) {
