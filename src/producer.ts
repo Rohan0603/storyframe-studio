@@ -562,7 +562,7 @@ export async function recordProducerRender(
     videoCodec: 'h264',
     audioCodec: 'aac',
   };
-  session.review = undefined;
+  delete session.review;
   episode.release.productionQAPassed = false;
 }
 
