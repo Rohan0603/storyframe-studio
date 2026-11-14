@@ -9,6 +9,7 @@ import {
 } from './checkpoints.js';
 import { validateEpisode, sha256 } from './manifest.js';
 import { createEpisode } from './scaffold.js';
+import { resolveContained } from './paths.js';
 import type { Episode } from './types.js';
 
 async function load(root: string): Promise<Episode> {
@@ -21,8 +22,12 @@ async function inputHashes(
   root: string,
   episode: Episode,
 ): Promise<Record<string, string>> {
-  const script = await readFile(join(root, episode.script.path));
-  const refs = await readFile(join(root, episode.referenceBundle.path));
+  const script = await readFile(
+    await resolveContained(root, episode.script.path),
+  );
+  const refs = await readFile(
+    await resolveContained(root, episode.referenceBundle.path),
+  );
   const dependencies = JSON.stringify({
     narration: episode.narration,
     beats: episode.beats,

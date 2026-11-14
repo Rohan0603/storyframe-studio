@@ -145,6 +145,10 @@ export async function validateEpisode(
     }
   }
   for (const beat of episode?.beats ?? []) {
+    if (!beat || typeof beat !== 'object') {
+      errors.push('beat must be an object');
+      continue;
+    }
     addId(errors, ids, beat.id, 'beat ID');
     if (
       !Number.isInteger(beat.scriptStartChar) ||
@@ -153,9 +157,29 @@ export async function validateEpisode(
       beat.scriptEndChar < beat.scriptStartChar
     )
       errors.push(`invalid script span for ${beat.id}`);
+    if (
+      episode?.story &&
+      Number.isInteger(beat.scriptStartChar) &&
+      Number.isInteger(beat.scriptEndChar) &&
+      beat.scriptStartChar >= 0 &&
+      beat.scriptEndChar <= episode.story.scriptRevision.text.length &&
+      episode.story.scriptRevision.text.slice(
+        beat.scriptStartChar,
+        beat.scriptEndChar,
+      ) !== beat.spokenText
+    )
+      errors.push(`spoken text mismatch for beat ${beat.id}`);
+    if (episode?.story)
+      for (const claimId of beat.sourceClaimIds ?? [])
+        if (!episode.story.sourceClaims.some((claim) => claim.id === claimId))
+          errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
   for (const shot of episode?.shots ?? []) {
+    if (!shot || typeof shot !== 'object') {
+      errors.push('shot must be an object');
+      continue;
+    }
     addId(errors, shotIds, shot.id, 'shot ID');
     if (shot.audioEndMs <= shot.audioStartMs || shot.audioStartMs < 0)
       errors.push(`invalid audio range for ${shot.id}`);
