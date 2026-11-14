@@ -117,6 +117,52 @@ function parseWavDuration(bytes: Uint8Array): number {
   return Math.round((dataSize / byteRate) * 1000);
 }
 
+function pcmL16ToWav(
+  bytes: Uint8Array,
+  sampleRate: number,
+  channels: number,
+): Buffer {
+  if (
+    !Number.isInteger(sampleRate) ||
+    sampleRate <= 0 ||
+    !Number.isInteger(channels) ||
+    channels <= 0 ||
+    bytes.length % 2 !== 0
+  )
+    throw new Error('Gemini TTS returned invalid audio/l16 parameters');
+  const wav = Buffer.alloc(44 + bytes.length);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(36 + bytes.length, 4);
+  wav.write('WAVEfmt ', 8, 'ascii');
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(channels, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * channels * 2, 28);
+  wav.writeUInt16LE(channels * 2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36, 'ascii');
+  wav.writeUInt32LE(bytes.length, 40);
+  Buffer.from(bytes).copy(wav, 44);
+  return wav;
+}
+
+function normalizeGeminiAudio(
+  bytes: Uint8Array,
+  mimeType: string,
+): { bytes: Buffer; mimeType: 'audio/wav' } {
+  if (mimeType === 'audio/wav') return { bytes: Buffer.from(bytes), mimeType };
+  const match = /^audio\/l16;\s*rate=(\d+);\s*channels=(\d+)$/iu.exec(
+    mimeType,
+  );
+  if (!match)
+    throw new Error(`Gemini TTS returned unsupported audio format: ${mimeType}`);
+  return {
+    bytes: pcmL16ToWav(bytes, Number(match[1]), Number(match[2])),
+    mimeType: 'audio/wav',
+  };
+}
+
 async function writeNewFile(
   root: string,
   relativePath: string,
@@ -260,11 +306,15 @@ export async function synthesizeGeminiTts(
     const inline = payload.candidates?.[0]?.content?.parts?.find(
       (part) => part.inlineData,
     )?.inlineData;
-    if (!inline?.data || inline.mimeType !== 'audio/wav')
+    if (!inline?.data || !inline.mimeType)
       throw new Error(
         `Gemini TTS returned unsupported audio format: ${inline?.mimeType ?? 'missing'}`,
       );
-    const bytes = Buffer.from(inline.data, 'base64');
+    const normalized = normalizeGeminiAudio(
+      Buffer.from(inline.data, 'base64'),
+      inline.mimeType,
+    );
+    const bytes = normalized.bytes;
     const durationMs = parseWavDuration(bytes);
     await writeNewFile(root, audioPath, bytes);
     const audioSha256 = sha256(bytes);
@@ -280,7 +330,7 @@ export async function synthesizeGeminiTts(
       audioPath,
       audioSha256,
       durationMs,
-      mimeType: inline.mimeType,
+      mimeType: normalized.mimeType,
     };
   } catch (error) {
     await writeReceipt(root, requestId, {

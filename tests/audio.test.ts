@@ -214,4 +214,47 @@ describe('Gemini TTS and verified captions', () => {
     expect(result.audioSha256).toBe(hash(wav));
     await expect(readFile(join(root, result.audioPath))).resolves.toEqual(wav);
   });
+
+  it('normalizes Gemini PCM l16 output into a persisted WAV', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-audio-l16-'));
+    const pcm = Buffer.alloc(4800);
+    const result = await synthesizeGeminiTts(root, {
+      approvedText: 'The traveler opens the chest.',
+      transcript: 'The traveler opens the chest.',
+      voiceName: 'Kore',
+      model: 'gemini-3.1-flash-tts-preview',
+      apiKey: 'test-only',
+      chargeAuthorization: 'free',
+      preflight: {
+        modelAvailable: true,
+        quotaState: 'available' as const,
+        chargeState: 'free' as const,
+      },
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType: 'audio/l16; rate=24000; channels=1',
+                        data: pcm.toString('base64'),
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    });
+    const persisted = await readFile(join(root, result.audioPath));
+    expect(persisted.subarray(0, 4).toString()).toBe('RIFF');
+    expect(persisted.readUInt32LE(24)).toBe(24000);
+    expect(result.mimeType).toBe('audio/wav');
+    expect(result.durationMs).toBe(100);
+  });
 });
