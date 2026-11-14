@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+projects/
+output/
+*.mp4
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.webp
+receipts/
+.storyframe/
+*.log
