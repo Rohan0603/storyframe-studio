@@ -18,6 +18,9 @@ import {
   approveProducerStage,
   assessProducer,
   boundedPolicy,
+  generateProducerCaptions,
+  generateProducerRender,
+  runAutoProducer,
   recordProducerRender,
   recordProducerReview,
   saveProducerEpisode,
@@ -124,6 +127,30 @@ export async function runCli(args: string[]): Promise<number> {
       await saveProducerEpisode(root, episode);
       return 0;
     }
+    if (action === 'create-captions') {
+      await generateProducerCaptions(
+        root,
+        episode,
+        args[3] ?? 'audio/producer.srt',
+      );
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'render') {
+      await generateProducerRender(
+        root,
+        episode,
+        args[3] ?? 'output/producer-video.mp4',
+      );
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'run') {
+      const report = await runAutoProducer(root, episode);
+      await saveProducerEpisode(root, episode);
+      console.log(JSON.stringify(report, null, 2));
+      return 0;
+    }
     if (action === 'verify-render') {
       if (!args[3]) throw new Error('render path is required');
       await recordProducerRender(root, episode, args[3]);
@@ -144,7 +171,7 @@ export async function runCli(args: string[]): Promise<number> {
       return 0;
     }
     throw new Error(
-      'producer usage: <root> <init|status|next|approve|verify-render|record-review|package>',
+      'producer usage: <root> <init|status|next|approve|create-captions|render|run|verify-render|record-review|package>',
     );
   }
   if (command === 'select-provider') {
