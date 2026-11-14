@@ -18,7 +18,9 @@ describe('CLI', () => {
 
   it('fails explicitly for render', async () => {
     const root = await mkdtemp(join(tmpdir(), 'storyframe-cli-render-'));
-    await expect(runCli(['render', root])).rejects.toThrow(/episode.json|ENOENT/i);
+    await expect(runCli(['render', root])).rejects.toThrow(
+      /episode.json|ENOENT/i,
+    );
   });
 
   it('fails closed for image-preflight without calling a provider', async () => {

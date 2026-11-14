@@ -67,7 +67,9 @@ export async function runCli(args: string[]): Promise<number> {
       quota: 'unknown',
       chargeState: 'unknown',
     });
-    throw new Error(`image-preflight ${result.status.toUpperCase()}: ${result.reason}`);
+    throw new Error(
+      `image-preflight ${result.status.toUpperCase()}: ${result.reason}`,
+    );
   }
   const episode = await load(root);
   const validation = await validateEpisode(episode, root);
