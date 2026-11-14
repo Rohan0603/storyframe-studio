@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { createSrt, type AudioAlignment } from './audio.js';
+import { createSrt, writeSrt, type AudioAlignment } from './audio.js';
+import { renderStillEpisode } from './render.js';
 import { sha256, validateEpisode } from './manifest.js';
 import { resolveContained } from './paths.js';
 import type { Episode } from './types.js';
@@ -564,6 +565,66 @@ export async function recordProducerRender(
   };
   delete session.review;
   episode.release.productionQAPassed = false;
+}
+
+export async function generateProducerCaptions(
+  root: string,
+  episode: Episode,
+  path = 'audio/producer.srt',
+): Promise<string> {
+  const report = await assessProducer(root, episode);
+  if (report.stages.find((step) => step.stage === 'narration')?.status !== 'approved')
+    throw new Error('captions require accepted, verified narration and prior stages');
+  if (episode.narration.captionsPath)
+    throw new Error('caption path is already recorded; do not overwrite accepted captions');
+  const verified = await approvedAlignment(root, episode);
+  if (!verified.alignment)
+    throw new Error('verified audio alignment is required before captions');
+  await writeSrt(root, path, verified.alignment);
+  episode.narration.captionsPath = path;
+  return path;
+}
+
+export async function generateProducerRender(
+  root: string,
+  episode: Episode,
+  path = 'output/producer-video.mp4',
+): Promise<ProducerRender> {
+  const report = await assessProducer(root, episode);
+  if (report.stages.find((step) => step.stage === 'captions')?.status !== 'approved')
+    throw new Error('render requires accepted, synchronized captions and prior stages');
+  if (episode.production?.render)
+    throw new Error('producer render already exists; no silent overwrite or retry');
+  const result = await renderStillEpisode(root, episode, { outputPath: path });
+  await recordProducerRender(root, episode, result.outputPath);
+  const render = episode.production?.render;
+  if (!render) throw new Error('render evidence could not be persisted');
+  return render;
+}
+
+export async function runAutoProducer(
+  root: string,
+  episode: Episode,
+): Promise<ProducerReport> {
+  if (episode.mode !== 'auto')
+    throw new Error('auto run is available only after explicitly starting Auto mode');
+  let report = await assessProducer(root, episode);
+  if (
+    report.nextStage === 'captions' &&
+    !episode.narration.captionsPath &&
+    report.stages.find((step) => step.stage === 'narration')?.status === 'approved'
+  ) {
+    await generateProducerCaptions(root, episode);
+    report = await assessProducer(root, episode);
+  }
+  if (
+    report.nextStage === 'render' &&
+    report.stages.find((step) => step.stage === 'captions')?.status === 'approved'
+  ) {
+    await generateProducerRender(root, episode);
+    report = await assessProducer(root, episode);
+  }
+  return report;
 }
 
 export async function writeProducerPackage(
