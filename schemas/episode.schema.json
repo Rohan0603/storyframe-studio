@@ -34,8 +34,9 @@
       ]
     },
     "story": { "$ref": "#/$defs/story" },
-    "beats": { "type": "array" },
-    "shots": { "type": "array" },
+    "alignment": { "$ref": "#/$defs/alignment" },
+    "beats": { "type": "array", "items": { "$ref": "#/$defs/beat" } },
+    "shots": { "type": "array", "items": { "$ref": "#/$defs/shot" } },
     "release": {
       "type": "object",
       "required": [
@@ -68,6 +69,119 @@
           "required": ["characters", "props", "observations"]
         },
         "beatCandidates": { "type": "array" }
+      }
+    },
+    "alignment": {
+      "type": "object",
+      "required": [
+        "scriptRevisionId",
+        "scriptSha256",
+        "timingStatus",
+        "audioDurationMs",
+        "density"
+      ],
+      "properties": {
+        "scriptRevisionId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "scriptSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "scriptRevisionSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "timingStatus": { "enum": ["provisional", "verified"] },
+        "audioDurationMs": { "type": ["integer", "null"], "minimum": 1 },
+        "density": {
+          "type": "object",
+          "required": ["style", "targetMin", "targetMax"],
+          "properties": {
+            "style": {
+              "enum": ["reflective", "cinematic", "energetic", "custom"]
+            },
+            "targetMin": { "type": "number", "minimum": 0 },
+            "targetMax": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "beat": {
+      "type": "object",
+      "required": [
+        "id",
+        "spokenText",
+        "scriptStartChar",
+        "scriptEndChar",
+        "sourceClaimIds",
+        "scriptRevisionId",
+        "scriptRevisionSha256"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "spokenText": { "type": "string" },
+        "scriptStartChar": { "type": "integer", "minimum": 0 },
+        "scriptEndChar": { "type": "integer", "minimum": 0 },
+        "sourceClaimIds": { "type": "array", "items": { "type": "string" } },
+        "scriptRevisionId": { "type": "string" },
+        "scriptRevisionSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "shot": {
+      "type": "object",
+      "required": [
+        "id",
+        "beatIds",
+        "audioStartMs",
+        "audioEndMs",
+        "requiredVisualEvent",
+        "characters",
+        "props",
+        "environment",
+        "composition",
+        "forbidden",
+        "visualPurpose",
+        "image",
+        "semanticReview"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "beatIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "audioStartMs": { "type": "integer", "minimum": 0 },
+        "audioEndMs": { "type": "integer", "minimum": 1 },
+        "requiredVisualEvent": { "type": "string", "minLength": 1 },
+        "characters": { "type": "array", "items": { "type": "string" } },
+        "props": { "type": "array", "items": { "type": "string" } },
+        "environment": { "type": "string", "minLength": 1 },
+        "composition": { "type": "string", "minLength": 1 },
+        "forbidden": { "type": "array", "items": { "type": "string" } },
+        "visualPurpose": {
+          "enum": ["action", "establishing", "transition", "hold"]
+        },
+        "intentionalHold": {
+          "type": "object",
+          "required": ["reason", "relatedBeatIds"],
+          "properties": {
+            "reason": { "type": "string", "minLength": 1 },
+            "relatedBeatIds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        }
       }
     }
   }

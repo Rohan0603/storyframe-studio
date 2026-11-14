@@ -8,6 +8,7 @@ import {
   validateScriptRevision,
 } from './story-layer.js';
 import type { Episode, ValidationResult } from './types.js';
+import { validateAlignment } from './alignment.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 export const sha256 = (bytes: Uint8Array | string): string =>
@@ -213,12 +214,33 @@ export async function validateEpisode(
       continue;
     }
     addId(errors, shotIds, shot.id, 'shot ID');
-    if (shot.audioEndMs <= shot.audioStartMs || shot.audioStartMs < 0)
+    if (
+      !Number.isFinite(shot.audioStartMs) ||
+      !Number.isFinite(shot.audioEndMs) ||
+      shot.audioEndMs <= shot.audioStartMs ||
+      shot.audioStartMs < 0
+    )
       errors.push(`invalid audio range for ${shot.id}`);
-    if (!shot.requiredVisualEvent?.trim() || shot.beatIds.length === 0)
+    if (
+      typeof shot.requiredVisualEvent !== 'string' ||
+      !shot.requiredVisualEvent.trim() ||
+      shot.beatIds.length === 0 ||
+      !Array.isArray(shot.characters) ||
+      !Array.isArray(shot.props) ||
+      !Array.isArray(shot.forbidden) ||
+      typeof shot.environment !== 'string' ||
+      !shot.environment.trim() ||
+      typeof shot.composition !== 'string' ||
+      !shot.composition.trim()
+    )
       errors.push(`shot ${shot.id} requires a visual event and beat`);
     for (const beatId of shot.beatIds)
-      if (!(episode.beats ?? []).some((beat) => beat.id === beatId))
+      if (
+        !Array.isArray(episode.beats) ||
+        !episode.beats.some(
+          (beat) => beat && typeof beat === 'object' && beat.id === beatId,
+        )
+      )
         errors.push(`shot ${shot.id} references missing beat ${beatId}`);
     if (shot.image.sha256 !== null && !HASH.test(shot.image.sha256))
       errors.push(`invalid image hash for ${shot.id}`);
@@ -239,9 +261,41 @@ export async function validateEpisode(
       );
     if (
       shot.semanticReview.status === 'pass' &&
-      shot.semanticReview.reviewedImageSha256 !== shot.image.sha256
+      (shot.image.sha256 === null ||
+        shot.semanticReview.reviewedImageSha256 !== shot.image.sha256)
     )
       errors.push(`review hash is not bound to image for ${shot.id}`);
+    if (episode.story) {
+      const characters = new Set(
+        episode.story.canon.characters.map((entity) => entity.id),
+      );
+      const props = new Set(
+        episode.story.canon.props.map((entity) => entity.id),
+      );
+      for (const id of Array.isArray(shot.characters) ? shot.characters : [])
+        if (!characters.has(id))
+          errors.push(`shot ${shot.id} references unknown character ${id}`);
+      for (const id of Array.isArray(shot.props) ? shot.props : [])
+        if (!props.has(id))
+          errors.push(`shot ${shot.id} references unknown prop ${id}`);
+    }
+  }
+  if (episode.alignment !== undefined) {
+    try {
+      if (
+        !episode.alignment ||
+        typeof episode.alignment !== 'object' ||
+        !episode.alignment.density
+      )
+        throw new Error('alignment has an invalid shape');
+      errors.push(...validateAlignment(episode, scriptText));
+    } catch (error) {
+      errors.push(
+        `alignment is invalid: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  } else if (Array.isArray(episode.shots) && episode.shots.length > 0) {
+    errors.push('alignment plan is required when shots exist');
   }
   return { valid: errors.length === 0, errors };
 }

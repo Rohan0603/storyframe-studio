@@ -21,6 +21,13 @@ const emptyEpisode = (
     alignmentPath: 'audio/alignment.json',
     alignmentVerified: false,
   },
+  alignment: {
+    scriptRevisionId: 'script-revision-01',
+    scriptSha256: scriptHash,
+    timingStatus: 'provisional',
+    audioDurationMs: null,
+    density: { style: 'cinematic', targetMin: 14, targetMax: 18 },
+  },
   beats: [],
   shots: [],
   release: {
