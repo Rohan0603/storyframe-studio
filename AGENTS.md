@@ -94,3 +94,12 @@ For each scoped task: understand issue and dependencies; write acceptance/tests;
 The first end-to-end acceptance demonstration must cover an exact spoken progression (opening chest -> glowing crystal -> room shaking) and **reject** shuffled images, visually absent crystal, character identity drift, missing pixels, stale references, incorrect timestamps and an unrelated attractive picture.
 
 Do not start production provider calls, purchase credits, publish or merge through this policy alone.
+
+## Producer orchestration (Issue #8)
+
+When working with `producer` or an episode's optional `production` section,
+read `docs/producer.md`. Stage approvals require real evidence and explicit
+reviewer notes bound to current hashes; Auto may accept only previously
+verified routine results. Never convert a status check into an image/TTS
+provider dispatch, actual-pixel review, paid call, or publishing authorization.
+The producer can generate a YouTube metadata package, never upload a video.

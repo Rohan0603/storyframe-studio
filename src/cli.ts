@@ -14,6 +14,21 @@ import type { Episode } from './types.js';
 import { densityNote, storyboardMarkdown } from './alignment.js';
 import { recordImagePreflight } from './image-generation.js';
 import { renderStillEpisode } from './render.js';
+import {
+  approveProducerStage,
+  assessProducer,
+  boundedPolicy,
+  generateProducerCaptions,
+  generateProducerRender,
+  runAutoProducer,
+  recordProducerRender,
+  recordProducerReview,
+  saveProducerEpisode,
+  startProducer,
+  writeProducerPackage,
+  type ProducerReview,
+  type ProducerStage,
+} from './producer.js';
 
 async function load(root: string): Promise<Episode> {
   return JSON.parse(
@@ -69,6 +84,94 @@ export async function runCli(args: string[]): Promise<number> {
     });
     throw new Error(
       `image-preflight ${result.status.toUpperCase()}: ${result.reason}`,
+    );
+  }
+  if (command === 'producer') {
+    const action = args[2];
+    const episode = await load(root);
+    if (action === 'init') {
+      const mode = args[3];
+      if (mode !== 'guided' && mode !== 'auto')
+        throw new Error('producer init requires guided or auto');
+      const maxShots = Number(args[4]);
+      const maxDurationSeconds = Number(args[5]);
+      if (!Number.isInteger(maxDurationSeconds))
+        throw new Error('producer init requires an integer duration limit');
+      episode.mode = mode;
+      startProducer(
+        episode,
+        boundedPolicy(maxShots, maxDurationSeconds * 1000),
+      );
+      const validation = await validateEpisode(episode, root);
+      if (!validation.valid)
+        throw new Error(
+          'producer init requires a valid episode: ' +
+            validation.errors.join('; '),
+        );
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'status' || action === 'next') {
+      const report = await assessProducer(root, episode);
+      console.log(JSON.stringify(report, null, 2));
+      return 0;
+    }
+    if (action === 'approve') {
+      await approveProducerStage(
+        root,
+        episode,
+        args[3] as ProducerStage,
+        args[4] ?? '',
+        args.slice(5).join(' '),
+      );
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'create-captions') {
+      await generateProducerCaptions(
+        root,
+        episode,
+        args[3] ?? 'audio/producer.srt',
+      );
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'render') {
+      await generateProducerRender(
+        root,
+        episode,
+        args[3] ?? 'output/producer-video.mp4',
+      );
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'run') {
+      const report = await runAutoProducer(root, episode);
+      await saveProducerEpisode(root, episode);
+      console.log(JSON.stringify(report, null, 2));
+      return 0;
+    }
+    if (action === 'verify-render') {
+      if (!args[3]) throw new Error('render path is required');
+      await recordProducerRender(root, episode, args[3]);
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'record-review') {
+      if (!args[3]) throw new Error('QA evidence path is required');
+      const review = JSON.parse(
+        await readFile(await resolveContained(root, args[3]), 'utf8'),
+      ) as ProducerReview;
+      await recordProducerReview(episode, review);
+      await saveProducerEpisode(root, episode);
+      return 0;
+    }
+    if (action === 'package') {
+      console.log(await writeProducerPackage(root, episode));
+      return 0;
+    }
+    throw new Error(
+      'producer usage: <root> <init|status|next|approve|create-captions|render|run|verify-render|record-review|package>',
     );
   }
   if (command === 'select-provider') {
