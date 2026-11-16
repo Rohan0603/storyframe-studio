@@ -1,4 +1,9 @@
-import type { ScriptRevision, SourceClaim, StoryCanon } from './story-layer.js';
+import type {
+  NarrativePlan,
+  ScriptRevision,
+  SourceClaim,
+  StoryCanon,
+} from './story-layer.js';
 import type { ProducerSession } from './producer.js';
 
 export type StageStatus =
@@ -39,6 +44,7 @@ export interface Episode {
   };
   story?: {
     scriptRevision: ScriptRevision;
+    narrativePlan?: NarrativePlan;
     sourceClaims: SourceClaim[];
     canon: StoryCanon;
     beatCandidates: BeatCandidate[];

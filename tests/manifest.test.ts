@@ -154,6 +154,36 @@ describe('episode validation', () => {
     );
   });
 
+  it('rejects a malformed narrative plan while allowing legacy stories without one', async () => {
+    const { root, episode } = await fixture();
+    const scriptRevision = createScriptRevision({
+      id: 'script-rev-01',
+      text: 'Good script',
+      segments: [],
+    });
+    episode.story = {
+      scriptRevision,
+      sourceClaims: [],
+      canon: { characters: [], props: [], observations: [] },
+      beatCandidates: [],
+      narrativePlan: {
+        hook: '',
+        contradiction: 'A contradiction',
+        protagonistGoal: 'A goal',
+        stakes: 'Stakes',
+        escalationBeats: ['one'],
+        reversal: 'A turn',
+        endingPayoff: 'An ending',
+        voiceDirection: 'Alert',
+        factualGuardrails: ['No invention'],
+      },
+    };
+    const result = await validateEpisode(episode, root);
+    expect(result.errors.join('\n')).toMatch(
+      /narrative plan: hook|required|escalation/,
+    );
+  });
+
   it('rejects out-of-bounds beats and malformed release state', async () => {
     const { root, episode } = await fixture();
     episode.beats = [

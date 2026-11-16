@@ -84,17 +84,22 @@ The strings marked `PLACEHOLDER` are not valid actual SHA-256 values and are inc
 ## Validation rules
 
 1. Schema/version, stable IDs, safe local paths, file contents and SHA values validate.
-2. All narration beats link to a precise text span in the approved script revision; `beats[].spokenText` must agree with the authoritative spoken script after a documented normalization policy.
-3. Every final shot has one or more legitimate linked beats and a required visual event. The visual intent must include a perceivable story action or a documented purposeful establishing/transition shot.
-4. Ordered shot timestamps are positive, within the verified audio duration and have no unexplained overlap/gaps. Exact word/segment alignment is required; provisional timing blocks final approval.
-5. Each scene image is a saved, signature-verified file, matches expected aspect/dimensions, has a SHA and is bound to the relevant prompt/reference/script hashes.
-6. A visual review must have **actually inspected the image** and refer to that exact image SHA plus beat and reference bundle hashes. Prompt compliance cannot be inferred from text-only metadata. Record `pass`, `fail` or `unknown` and explain all failures.
-7. A changed script, reference, image, voice/text, or timing dependency invalidates corresponding review approvals and derived renders.
-8. A production-ready video must have no missing/unreviewed/unmatched shots, no orphan narrated events, complete captions and validated media output. Synthetic fixtures are allowed only in marked offline-test mode and never pass production acceptance.
-9. Release metadata must separately distinguish creative approval, independent QA, provider permission and explicit publication authorization.
-10. No unreviewed or unrelated image may be substituted to meet the stills/minute target.
+2. Script approval requires a validated `story.narrativePlan` containing a
+   curiosity-producing hook/contradiction, character goal, stakes, at least two
+   causal escalation beats, a reversal, an ending payoff, voice direction and
+   factual guardrails. These are minimum evidence fields, not a fixed plot
+   formula.
+3. All narration beats link to a precise text span in the approved script revision; `beats[].spokenText` must agree with the authoritative spoken script after a documented normalization policy.
+4. Every final shot has one or more legitimate linked beats and a required visual event. The visual intent must include a perceivable story action or a documented purposeful establishing/transition shot.
+5. Ordered shot timestamps are positive, within the verified audio duration and have no unexplained overlap/gaps. Exact word/segment alignment is required; provisional timing blocks final approval.
+6. Each scene image is a saved, signature-verified file, matches expected aspect/dimensions, has a SHA and is bound to the relevant prompt/reference/script hashes.
+7. A visual review must have **actually inspected the image** and refer to that exact image SHA plus beat and reference bundle hashes. Prompt compliance cannot be inferred from text-only metadata. Record `pass`, `fail` or `unknown` and explain all failures.
+8. A changed script, reference, image, voice/text, or timing dependency invalidates corresponding review approvals and derived renders.
+9. A production-ready video must have no missing/unreviewed/unmatched shots, no orphan narrated events, complete captions and validated media output. Synthetic fixtures are allowed only in marked offline-test mode and never pass production acceptance.
+10. Release metadata must separately distinguish creative approval, independent QA, provider permission and explicit publication authorization.
+11. No unreviewed or unrelated image may be substituted to meet the stills/minute target.
 
-11. Generated stills carry `codex-desktop.image_gen` provenance, packet hash,
+12. Generated stills carry `codex-desktop.image_gen` provenance, packet hash,
     attempt/receipt identity and decoded dimensions. `semanticReview.status = pass`
     also requires `pixelsDecoded: true`, non-empty independent notes and an exact
     reviewed image SHA. Unknown quota, charge, output persistence, decode or pixel

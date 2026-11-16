@@ -5,6 +5,7 @@ import { isStableId } from './ids.js';
 import {
   validateCanon,
   validateClaimLedger,
+  validateNarrativePlan,
   validateScriptRevision,
 } from './story-layer.js';
 import type { Episode, ValidationResult } from './types.js';
@@ -221,6 +222,12 @@ export async function validateEpisode(
       )
         throw new Error('required story fields are missing');
       errors.push(...validateScriptRevision(episode.story.scriptRevision));
+      if (episode.story.narrativePlan)
+        errors.push(
+          ...validateNarrativePlan(episode.story.narrativePlan).map(
+            (error) => `narrative plan: ${error}`,
+          ),
+        );
       const claims = validateClaimLedger(episode.story.sourceClaims, {
         factualRelease: episode.release?.productionQAPassed === true,
       });

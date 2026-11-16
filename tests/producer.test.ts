@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createEpisode } from '../src/scaffold.js';
+import { createScriptRevision } from '../src/story-layer.js';
 import { runCli } from '../src/cli.js';
 import {
   approveProducerStage,
@@ -106,6 +107,73 @@ describe('Guided/Auto producer contracts', () => {
         checks: {} as never,
       }),
     ).rejects.toThrow(/render hash/i);
+  });
+
+  it('blocks script approval for a legacy story without a narrative plan', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-narrative-gate-'));
+    const episode = await createEpisode(root, 'episode-01');
+    episode.mode = 'auto';
+    episode.script.approved = true;
+    episode.story = {
+      scriptRevision: createScriptRevision({
+        id: 'script-revision-01',
+        text: 'A surprising historical story.',
+        segments: [],
+      }),
+      sourceClaims: [],
+      canon: { characters: [], props: [], observations: [] },
+      beatCandidates: [],
+    };
+    episode.alignment!.scriptRevisionSha256 =
+      episode.story.scriptRevision.textSha256;
+    startProducer(episode, boundedPolicy(30, 120_000));
+    const report = await assessProducer(root, episode);
+    expect(
+      report.stages.find((stage) => stage.stage === 'script'),
+    ).toMatchObject({
+      status: 'blocked',
+      reasons: expect.arrayContaining(['narrative plan: hook is required']),
+    });
+  });
+
+  it('keeps the Auto script stage human-reviewed even with a complete plan', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-narrative-review-'));
+    const episode = await createEpisode(root, 'episode-01');
+    episode.mode = 'auto';
+    episode.script.approved = true;
+    episode.story = {
+      scriptRevision: createScriptRevision({
+        id: 'script-revision-01',
+        text: 'A surprising historical story.',
+        segments: [],
+      }),
+      narrativePlan: {
+        hook: 'A small dispute triggers a national crisis.',
+        contradiction: 'The stakes are international despite the tiny cause.',
+        protagonistGoal: 'The farmer wants to protect his land.',
+        stakes: 'A local dispute could become an armed confrontation.',
+        escalationBeats: [
+          "A threat changes the farmer's options.",
+          'Troops arrive and raise the stakes.',
+        ],
+        reversal: 'Officials prevent the expected battle.',
+        endingPayoff: 'The crisis ends with an absurdly small casualty.',
+        voiceDirection: 'Dry and alert, with emphasis on the reversals.',
+        factualGuardrails: ['Do not invent dialogue or casualty counts.'],
+      },
+      sourceClaims: [],
+      canon: { characters: [], props: [], observations: [] },
+      beatCandidates: [],
+    };
+    episode.alignment!.scriptRevisionSha256 =
+      episode.story.scriptRevision.textSha256;
+    startProducer(episode, boundedPolicy(30, 120_000));
+
+    const report = await assessProducer(root, episode);
+
+    expect(
+      report.stages.find((stage) => stage.stage === 'script'),
+    ).toMatchObject({ status: 'needs-review', reasons: [] });
   });
 
   it('exposes a real CLI state file and fails closed without prior inputs', async () => {
