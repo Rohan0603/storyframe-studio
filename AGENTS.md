@@ -38,6 +38,10 @@ Read `README.md`, `docs/architecture.md`, `docs/production-contract.md`, and the
 1. Topic intake and intended viewer/format/target duration.
 2. Source-backed research, claim confidence and uncertainty register.
 3. Original, speakable script with locked text revision.
+   The script contract must also record a concrete hook/contradiction,
+   character goal, stakes, at least two causal escalations, a reversal, an
+   ending payoff, voice direction and factual guardrails. These are reviewable
+   evidence fields, not a mandatory genre formula.
 4. Ordered narrative **beat-to-shot map**: exact narration span, its story event, desired on-screen action, required entities and planned timing.
 5. Build **all recurring character, prop, environment and art-style references before full scene generation**; hash/lock the approved reference set.
 6. Generate each still through the explicitly selected, verified provider using its shot contract and locked references; persist output bytes and provenance.

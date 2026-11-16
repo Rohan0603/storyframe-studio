@@ -25,7 +25,10 @@ checkout or another reviewed skill directory; no network access occurs here.
 
 The optional `episode.story` section carries an original normalized script
 revision, stable speaker IDs, source/claim ledger, series character/prop canon,
-and exact `beatCandidates`. Canonical `episode.beats` remains the production
+an enforceable `narrativePlan`, and exact `beatCandidates`. The narrative plan
+is the handoff between premise/plot/voice skills and producer approval: it
+records the hook, character goal, stakes, causal escalations, reversal, payoff,
+voice direction and factual guardrails. Canonical `episode.beats` remains the production
 manifest's exact spoken-span handoff for Issue #4; no image generation or
 alignment is performed by this layer.
 

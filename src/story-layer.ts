@@ -65,6 +65,55 @@ export interface ScriptRevision {
   segments: ScriptSegment[];
 }
 
+export interface NarrativePlan {
+  hook: string;
+  contradiction: string;
+  protagonistGoal: string;
+  stakes: string;
+  escalationBeats: string[];
+  reversal: string;
+  endingPayoff: string;
+  voiceDirection: string;
+  factualGuardrails: string[];
+}
+
+export function validateNarrativePlan(plan?: NarrativePlan): string[] {
+  const errors: string[] = [];
+  const required: Array<[keyof NarrativePlan, string]> = [
+    ['hook', 'hook'],
+    ['contradiction', 'opening contradiction'],
+    ['protagonistGoal', 'character goal'],
+    ['stakes', 'stakes'],
+    ['reversal', 'reversal or turn'],
+    ['endingPayoff', 'ending payoff'],
+    ['voiceDirection', 'voice direction'],
+  ];
+  for (const [key, label] of required) {
+    if (typeof plan?.[key] !== 'string' || !plan[key].trim())
+      errors.push(`${label} is required`);
+  }
+  if (!Array.isArray(plan?.escalationBeats) || plan.escalationBeats.length < 2)
+    errors.push('at least two escalation beats are required');
+  else if (
+    plan.escalationBeats.some(
+      (beat) => typeof beat !== 'string' || !beat.trim(),
+    )
+  )
+    errors.push('escalation beats must be non-empty');
+  if (
+    !Array.isArray(plan?.factualGuardrails) ||
+    plan.factualGuardrails.length < 1
+  )
+    errors.push('at least one factual guardrail is required');
+  else if (
+    plan.factualGuardrails.some(
+      (guardrail) => typeof guardrail !== 'string' || !guardrail.trim(),
+    )
+  )
+    errors.push('factual guardrails must be non-empty');
+  return errors;
+}
+
 export function validateScriptRevision(revision: ScriptRevision): string[] {
   const errors: string[] = [];
   if (!isStableId(revision.id))

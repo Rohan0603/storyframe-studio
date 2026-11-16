@@ -6,6 +6,7 @@ import { createSrt, writeSrt, type AudioAlignment } from './audio.js';
 import { renderStillEpisode } from './render.js';
 import { sha256, validateEpisode } from './manifest.js';
 import { resolveContained } from './paths.js';
+import { validateNarrativePlan } from './story-layer.js';
 import type { Episode } from './types.js';
 
 export const PRODUCER_STAGES = [
@@ -319,6 +320,12 @@ async function stageEvidence(
       if (!episode.script.approved || !episode.story)
         reasons.push(
           'approved original script and story revision are required',
+        );
+      else
+        reasons.push(
+          ...validateNarrativePlan(episode.story.narrativePlan).map(
+            (error) => `narrative plan: ${error}`,
+          ),
         );
       break;
     case 'beat-map':

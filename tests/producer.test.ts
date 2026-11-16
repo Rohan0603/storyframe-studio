@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createEpisode } from '../src/scaffold.js';
+import { createScriptRevision } from '../src/story-layer.js';
 import { runCli } from '../src/cli.js';
 import {
   approveProducerStage,
@@ -106,6 +107,33 @@ describe('Guided/Auto producer contracts', () => {
         checks: {} as never,
       }),
     ).rejects.toThrow(/render hash/i);
+  });
+
+  it('blocks script approval for a legacy story without a narrative plan', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'storyframe-narrative-gate-'));
+    const episode = await createEpisode(root, 'episode-01');
+    episode.mode = 'auto';
+    episode.script.approved = true;
+    episode.story = {
+      scriptRevision: createScriptRevision({
+        id: 'script-revision-01',
+        text: 'A surprising historical story.',
+        segments: [],
+      }),
+      sourceClaims: [],
+      canon: { characters: [], props: [], observations: [] },
+      beatCandidates: [],
+    };
+    episode.alignment!.scriptRevisionSha256 =
+      episode.story.scriptRevision.textSha256;
+    startProducer(episode, boundedPolicy(30, 120_000));
+    const report = await assessProducer(root, episode);
+    expect(
+      report.stages.find((stage) => stage.stage === 'script'),
+    ).toMatchObject({
+      status: 'blocked',
+      reasons: expect.arrayContaining(['narrative plan: hook is required']),
+    });
   });
 
   it('exposes a real CLI state file and fails closed without prior inputs', async () => {

@@ -84,7 +84,9 @@ an existing file. It explicitly sets `uploadAuthorized: false` and
 
 1. **research:** Story Skills output and a source/claim ledger without disputed
    or unverified factual assertions.
-2. **script:** Original approved script revision.
+2. **script:** Original approved script revision plus a validated narrative plan
+   (hook/contradiction, goal, stakes, causal escalations, reversal, payoff,
+   voice direction and factual guardrails).
 3. **beat-map:** Exact narration spans and meaningful shots.
 4. **references:** Frozen image-based visual reference bible.
 5. **images:** Actual decoded and SHA-bound images with pixel-semantic reviews,
