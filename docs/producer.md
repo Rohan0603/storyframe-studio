@@ -48,7 +48,7 @@ Example render verification:
 node dist/src/cli.js producer "C:\path\to\episode" verify-render output/video.mp4
 ```
 
-Guided use: after approving the narration stage, run `producer <root> create-captions`, review and approve the captions stage, then `producer <root> render`. Auto use: after starting in `auto` mode and preparing all upstream assets, an explicit `producer <root> run` creates SRT and renders MP4 if the verified inputs and limits permit. It stops at human final QA and cannot call native `image_gen`, invoke cloud TTS or publish.
+Guided use: after approving the narration stage, run `producer <root> create-captions`, review and approve the captions stage, then `producer <root> render`. Auto use: after starting in `auto` mode and preparing all upstream assets, an explicit `producer <root> run` creates SRT and renders MP4 if the verified inputs and limits permit. Auto leaves the script stage for explicit human semantic approval; it stops at human final QA and cannot call native `image_gen`, invoke cloud TTS or publish.
 
 QA must be written and checked independently after listening to and watching
 the actual final video. A locally written review document is required for

@@ -453,7 +453,11 @@ export async function assessProducer(
       reasons.unshift('approval is stale for changed upstream dependencies');
     } else if (reasons.length) status = 'blocked';
     else if (recent?.fingerprint === fingerprint) status = 'approved';
-    else if (episode.mode === 'auto' && stage !== 'final-qa')
+    else if (
+      episode.mode === 'auto' &&
+      stage !== 'script' &&
+      stage !== 'final-qa'
+    )
       status = 'approved';
     else status = 'needs-review';
     stages.push({ stage, status, reasons, fingerprint });
