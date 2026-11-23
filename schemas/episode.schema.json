@@ -23,6 +23,7 @@
     "mode": { "enum": ["guided", "auto"] },
     "script": { "$ref": "#/$defs/hashedPath" },
     "referenceBundle": { "$ref": "#/$defs/hashedPath" },
+    "series": { "$ref": "#/$defs/seriesConfiguration" },
     "referenceBible": { "$ref": "#/$defs/referenceBibleManifest" },
     "narration": {
       "type": "object",
@@ -393,6 +394,7 @@
           }
         },
         "referenceBinding": { "$ref": "#/$defs/referenceBinding" },
+        "seriesBinding": { "$ref": "#/$defs/seriesBinding" },
         "image": { "$ref": "#/$defs/imageOutput" },
         "semanticReview": { "$ref": "#/$defs/semanticReview" }
       }
@@ -566,6 +568,39 @@
         }
       }
     },
+    "seriesConfiguration": {
+      "type": "object",
+      "required": [
+        "seriesId",
+        "revisionId",
+        "biblePath",
+        "bibleSha256",
+        "visualFormat",
+        "applied"
+      ],
+      "properties": {
+        "seriesId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "revisionId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "biblePath": { "type": "string", "minLength": 1 },
+        "bibleSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "visualFormat": { "enum": ["2d-still", "3d-still"] },
+        "applied": { "type": "boolean" }
+      }
+    },
+    "seriesBinding": {
+      "type": "object",
+      "required": ["seriesId", "revisionId"],
+      "properties": {
+        "seriesId": { "type": "string", "minLength": 1 },
+        "revisionId": { "type": "string", "minLength": 1 }
+      }
+    },
     "syncSubtitle": {
       "type": "object",
       "required": ["cueId", "startMs", "endMs", "text", "alignmentStatus"],
@@ -581,7 +616,15 @@
     },
     "syncRecord": {
       "type": "object",
-      "required": ["shotId", "sceneId", "startMs", "endMs", "narration", "image", "subtitles"],
+      "required": [
+        "shotId",
+        "sceneId",
+        "startMs",
+        "endMs",
+        "narration",
+        "image",
+        "subtitles"
+      ],
       "properties": {
         "shotId": { "type": "string", "minLength": 1 },
         "sceneId": { "type": "string", "minLength": 1 },
@@ -589,12 +632,23 @@
         "endMs": { "type": "integer", "minimum": 1 },
         "narration": { "type": "object" },
         "image": { "type": "object" },
-        "subtitles": { "type": "array", "items": { "$ref": "#/$defs/syncSubtitle" } }
+        "subtitles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/syncSubtitle" }
+        }
       }
     },
     "syncTimeline": {
       "type": "object",
-      "required": ["version", "status", "audioSha256", "audioDurationMs", "scriptSha256", "alignmentPath", "records"],
+      "required": [
+        "version",
+        "status",
+        "audioSha256",
+        "audioDurationMs",
+        "scriptSha256",
+        "alignmentPath",
+        "records"
+      ],
       "properties": {
         "version": { "const": 1 },
         "status": { "enum": ["verified", "legacy-unverified"] },
@@ -602,7 +656,10 @@
         "audioDurationMs": { "type": "integer", "minimum": 1 },
         "scriptSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "alignmentPath": { "type": "string", "minLength": 1 },
-        "records": { "type": "array", "items": { "$ref": "#/$defs/syncRecord" } }
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/syncRecord" }
+        }
       }
     }
   }
