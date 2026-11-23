@@ -109,6 +109,14 @@ The CLI provides a no-spend contract and rendering foundation. After installing 
 
 Narration can be selected per episode with `storyframe select-provider <episode-root> <episode-id> gemini-tts` or `storyframe select-provider <episode-root> <episode-id> kokoro-onnx`. Kokoro runs locally through the configured `kokoro-onnx` Python environment and never contacts a paid provider. Changing providers invalidates the episode's prior alignment so captions and rendering must be regenerated from the selected audio.
 
+Issue #23 adds an opt-in audio-locked `syncTimeline` to `episode.json`. When
+present, render and producer captions fail closed unless the same validated
+records bind each shot's actual audio interval, exact narration span, image
+identity/pixel review and subtitle cues. Run `storyframe sync-review <episode-root>`
+to create the CSV and HTML storyboard projections. Legacy v1 episodes remain
+readable and are labeled `legacy-unverified` until this evidence is recorded;
+see [the synchronization migration guide](docs/synchronization.md).
+
 ## Story development layer
 
 Issue #3 adds a selective Story Skills boundary and offline story data

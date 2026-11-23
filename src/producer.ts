@@ -8,6 +8,7 @@ import { sha256, validateEpisode } from './manifest.js';
 import { resolveContained } from './paths.js';
 import { validateNarrativePlan } from './story-layer.js';
 import type { Episode } from './types.js';
+import { timelineSrt, validateSyncTimeline } from './sync.js';
 
 export const PRODUCER_STAGES = [
   'research',
@@ -189,6 +190,7 @@ export function stageFingerprint(
   if (rank >= 2)
     inputs.push(
       episode.beats,
+      episode.syncTimeline,
       episode.shots.map((shot) => ({
         id: shot.id,
         beatIds: shot.beatIds,
@@ -370,7 +372,10 @@ async function stageEvidence(
           await resolveContained(root, episode.narration.captionsPath),
           'utf8',
         );
-        if (currentSrt.trim() !== createSrt(verified.alignment).trim())
+        const expectedSrt = episode.syncTimeline
+          ? timelineSrt(episode.syncTimeline)
+          : createSrt(verified.alignment);
+        if (currentSrt.trim() !== expectedSrt.trim())
           reasons.push('caption file does not match verified word alignment');
       } catch {
         reasons.push('caption file is unavailable or unsafe');
@@ -628,6 +633,15 @@ export async function generateProducerCaptions(
       'caption path is already recorded; do not overwrite accepted captions',
     );
   const verified = await approvedAlignment(root, episode);
+  if (episode.syncTimeline) {
+    const sync = await validateSyncTimeline(episode, root);
+    if (!sync.valid) throw new Error(`verified sync timeline is required before captions: ${sync.errors.join('; ')}`);
+    const target = await resolveContained(root, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, timelineSrt(episode.syncTimeline), { encoding: 'utf8', flag: 'wx' });
+    episode.narration.captionsPath = path;
+    return path;
+  }
   if (!verified.alignment)
     throw new Error('verified audio alignment is required before captions');
   await writeSrt(root, path, verified.alignment);
