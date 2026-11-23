@@ -33,7 +33,16 @@ describe('FFmpeg still renderer', () => {
     audio.write('data', 36, 'ascii');
     audio.writeUInt32LE(16_000, 40);
     await writeFile(audioPath, audio);
-    await writeFile(join(root, 'alignment.json'), JSON.stringify({ verified: true, source: 'provider', audioSha256: hash(audio), durationMs: 1000, transcriptSha256: hash('A.') }));
+    await writeFile(
+      join(root, 'alignment.json'),
+      JSON.stringify({
+        verified: true,
+        source: 'provider',
+        audioSha256: hash(audio),
+        durationMs: 1000,
+        transcriptSha256: hash('A.'),
+      }),
+    );
     const episode: Episode = {
       schemaVersion: 1,
       episodeId: 'episode-01',
@@ -56,7 +65,17 @@ describe('FFmpeg still renderer', () => {
         audioDurationMs: 1000,
         density: { style: 'cinematic', targetMin: 1, targetMax: 2 },
       },
-      beats: [{ id: 'beat-01', spokenText: 'A.', scriptStartChar: 0, scriptEndChar: 2, sourceClaimIds: [], scriptRevisionId: 'script-revision-01', scriptRevisionSha256: hash('A.') }],
+      beats: [
+        {
+          id: 'beat-01',
+          spokenText: 'A.',
+          scriptStartChar: 0,
+          scriptEndChar: 2,
+          sourceClaimIds: [],
+          scriptRevisionId: 'script-revision-01',
+          scriptRevisionSha256: hash('A.'),
+        },
+      ],
       shots: [
         {
           id: 'shot-01',
@@ -70,7 +89,19 @@ describe('FFmpeg still renderer', () => {
           environment: 'room',
           composition: 'wide',
           forbidden: [],
-          image: { path: 'shot.png', sha256: hash(png), status: 'approved', provenance: { tool: 'codex-desktop.image_gen', packetSha256: hash('packet'), attemptId: 'attempt-01', receiptStatus: 'persisted', width: 1, height: 1 } },
+          image: {
+            path: 'shot.png',
+            sha256: hash(png),
+            status: 'approved',
+            provenance: {
+              tool: 'codex-desktop.image_gen',
+              packetSha256: hash('packet'),
+              attemptId: 'attempt-01',
+              receiptStatus: 'persisted',
+              width: 1,
+              height: 1,
+            },
+          },
           semanticReview: {
             status: 'pass',
             reviewedImageSha256: hash(png),
@@ -86,12 +117,39 @@ describe('FFmpeg still renderer', () => {
         audioDurationMs: 1000,
         scriptSha256: hash('A.'),
         alignmentPath: 'alignment.json',
-        records: [{
-          shotId: 'shot-01', sceneId: 'scene-01', startMs: 0, endMs: 1000,
-          narration: { beatIds: ['beat-01'], text: 'A.', scriptStartChar: 0, scriptEndChar: 2, timingSource: 'audio-verified' },
-          image: { prompt: 'A.', promptSha256: hash('A.'), requiredVisualEvent: 'A.', path: 'shot.png', sha256: hash(png), sourceShotId: 'shot-01', pixelReview: 'pass' },
-          subtitles: [{ cueId: 'cue-01', startMs: 0, endMs: 1000, text: 'A.', alignmentStatus: 'verified' }],
-        }],
+        records: [
+          {
+            shotId: 'shot-01',
+            sceneId: 'scene-01',
+            startMs: 0,
+            endMs: 1000,
+            narration: {
+              beatIds: ['beat-01'],
+              text: 'A.',
+              scriptStartChar: 0,
+              scriptEndChar: 2,
+              timingSource: 'audio-verified',
+            },
+            image: {
+              prompt: 'A.',
+              promptSha256: hash('A.'),
+              requiredVisualEvent: 'A.',
+              path: 'shot.png',
+              sha256: hash(png),
+              sourceShotId: 'shot-01',
+              pixelReview: 'pass',
+            },
+            subtitles: [
+              {
+                cueId: 'cue-01',
+                startMs: 0,
+                endMs: 1000,
+                text: 'A.',
+                alignmentStatus: 'verified',
+              },
+            ],
+          },
+        ],
       },
       release: {
         productionQAPassed: false,

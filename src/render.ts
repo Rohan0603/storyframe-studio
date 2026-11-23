@@ -1,11 +1,5 @@
 import { spawn } from 'node:child_process';
-import {
-  access,
-  mkdir,
-  readFile,
-  rename,
-  unlink,
-} from 'node:fs/promises';
+import { access, mkdir, readFile, rename, unlink } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { resolveContained } from './paths.js';
@@ -85,9 +79,14 @@ export async function renderStillEpisode(
   if (!episode.shots.length)
     throw new Error('render requires at least one shot');
   if (!episode.syncTimeline)
-    throw new Error('render requires an audio-locked sync timeline; legacy episodes are legacy-unverified');
+    throw new Error(
+      'render requires an audio-locked sync timeline; legacy episodes are legacy-unverified',
+    );
   const sync = await validateSyncTimeline(episode, root);
-  if (!sync.valid) throw new Error(`render requires a valid sync timeline: ${sync.errors.join('; ')}`);
+  if (!sync.valid)
+    throw new Error(
+      `render requires a valid sync timeline: ${sync.errors.join('; ')}`,
+    );
   const audioPath = await resolveContained(root, episode.narration.audioPath);
   await access(audioPath);
   if (!episode.narration.audioSha256 || !episode.narration.audioDurationMs)
@@ -143,13 +142,14 @@ export async function renderStillEpisode(
     filterParts.push(
       `${episode.shots.map((_, index) => `[v${index}]`).join('')}concat=n=${episode.shots.length}:v=1:a=0,format=yuv420p[v]`,
     );
-    const ffmpegArgs = [
-      '-hide_banner',
-      '-loglevel',
-      'error',
-    ];
+    const ffmpegArgs = ['-hide_banner', '-loglevel', 'error'];
     for (const shot of episode.shots) {
-      ffmpegArgs.push('-loop', '1', '-i', await resolveContained(root, shot.image.path));
+      ffmpegArgs.push(
+        '-loop',
+        '1',
+        '-i',
+        await resolveContained(root, shot.image.path),
+      );
     }
     ffmpegArgs.push(
       '-i',

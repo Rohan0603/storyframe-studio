@@ -40,25 +40,55 @@ async function fixture(): Promise<{ root: string; episode: Episode }> {
       canon: { characters: [], props: [], observations: [] },
       beatCandidates: [],
     },
-    beats: [{
-      id: 'beat-01', spokenText: 'Tommy enters the bar.', scriptStartChar: 0,
-      scriptEndChar: 21, sourceClaimIds: [], scriptRevisionId: 'script-revision-02',
-      scriptRevisionSha256: scriptHash,
-    }],
+    beats: [
+      {
+        id: 'beat-01',
+        spokenText: 'Tommy enters the bar.',
+        scriptStartChar: 0,
+        scriptEndChar: 21,
+        sourceClaimIds: [],
+        scriptRevisionId: 'script-revision-02',
+        scriptRevisionSha256: scriptHash,
+      },
+    ],
     alignment: {
-      scriptRevisionId: 'script-revision-02', scriptSha256: scriptHash,
+      scriptRevisionId: 'script-revision-02',
+      scriptSha256: scriptHash,
       scriptRevisionSha256: scriptHash,
-      timingStatus: 'provisional', audioDurationMs: 1000,
+      timingStatus: 'provisional',
+      audioDurationMs: 1000,
       density: { style: 'cinematic', targetMin: 1, targetMax: 18 },
     },
-    shots: [{
-      id: 'shot-01', beatIds: ['beat-01'], audioStartMs: 0, audioEndMs: 1000,
-      requiredVisualEvent: 'Tommy enters the bar', characters: [], props: [],
-      environment: 'bar', composition: 'wide', forbidden: [], visualPurpose: 'action',
-      image: { path: 'images/shot-01.png', sha256: null, status: 'pending' as const },
-      semanticReview: { status: 'pending' as const, reviewedImageSha256: null, notes: '' },
-    }],
-    release: { productionQAPassed: false, creativeApproval: null, publishAuthorization: null },
+    shots: [
+      {
+        id: 'shot-01',
+        beatIds: ['beat-01'],
+        audioStartMs: 0,
+        audioEndMs: 1000,
+        requiredVisualEvent: 'Tommy enters the bar',
+        characters: [],
+        props: [],
+        environment: 'bar',
+        composition: 'wide',
+        forbidden: [],
+        visualPurpose: 'action',
+        image: {
+          path: 'images/shot-01.png',
+          sha256: null,
+          status: 'pending' as const,
+        },
+        semanticReview: {
+          status: 'pending' as const,
+          reviewedImageSha256: null,
+          notes: '',
+        },
+      },
+    ],
+    release: {
+      productionQAPassed: false,
+      creativeApproval: null,
+      publishAuthorization: null,
+    },
   } as Episode;
   return { root, episode };
 }
@@ -98,6 +128,8 @@ describe('series continuity application', () => {
       revisionId: 'series-revision-01',
     };
     const result = await validateEpisode(episode, root);
-    expect(result.errors.filter((error) => /series binding/i.test(error))).toEqual([]);
+    expect(
+      result.errors.filter((error) => /series binding/i.test(error)),
+    ).toEqual([]);
   });
 });

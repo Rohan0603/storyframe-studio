@@ -209,7 +209,9 @@ export async function runCli(args: string[]): Promise<number> {
     const result = await validateAndWriteTimelineReview(root, episode);
     console.log(JSON.stringify(result, null, 2));
     if (!result.validation.valid && result.status !== 'legacy-unverified')
-      throw new Error(`sync timeline validation failed:\n${result.validation.errors.join('\n')}`);
+      throw new Error(
+        `sync timeline validation failed:\n${result.validation.errors.join('\n')}`,
+      );
     return 0;
   }
   const validation = await validateEpisode(episode, root);

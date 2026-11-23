@@ -635,10 +635,16 @@ export async function generateProducerCaptions(
   const verified = await approvedAlignment(root, episode);
   if (episode.syncTimeline) {
     const sync = await validateSyncTimeline(episode, root);
-    if (!sync.valid) throw new Error(`verified sync timeline is required before captions: ${sync.errors.join('; ')}`);
+    if (!sync.valid)
+      throw new Error(
+        `verified sync timeline is required before captions: ${sync.errors.join('; ')}`,
+      );
     const target = await resolveContained(root, path);
     await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, timelineSrt(episode.syncTimeline), { encoding: 'utf8', flag: 'wx' });
+    await writeFile(target, timelineSrt(episode.syncTimeline), {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
     episode.narration.captionsPath = path;
     return path;
   }
