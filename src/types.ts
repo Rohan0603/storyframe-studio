@@ -50,6 +50,8 @@ export interface Episode {
     beatCandidates: BeatCandidate[];
   };
   alignment?: AlignmentPlan;
+  /** Optional v2 audio-locked projection; v1 episodes remain readable but unverified. */
+  syncTimeline?: SyncTimeline;
   production?: ProducerSession;
   beats: Beat[];
   shots: Shot[];
@@ -129,10 +131,12 @@ export interface AlignmentPlan {
 }
 export interface Shot {
   id: string;
+  sceneId?: string;
   beatIds: string[];
   audioStartMs: number;
   audioEndMs: number;
   requiredVisualEvent: string;
+  imagePrompt?: string;
   characters: string[];
   props: string[];
   environment: string;
@@ -161,6 +165,52 @@ export interface Shot {
     referenceIds: string[];
     referenceHashes: Record<string, string>;
   };
+}
+
+export interface SyncSubtitleCue {
+  cueId: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+  alignmentStatus: 'verified' | 'provisional' | 'unknown';
+  sourceWordStart?: number;
+  sourceWordEnd?: number;
+}
+
+export interface SyncTimelineRecord {
+  shotId: string;
+  sceneId: string;
+  startMs: number;
+  endMs: number;
+  narration: {
+    beatIds: string[];
+    text: string;
+    scriptStartChar: number;
+    scriptEndChar: number;
+    timingSource: 'audio-verified';
+  };
+  image: {
+    prompt: string;
+    promptSha256: string;
+    requiredVisualEvent: string;
+    path: string;
+    sha256: string | null;
+    sourceShotId: string;
+    pixelReview: 'pass' | 'fail' | 'unknown' | 'pending';
+    referenceFreezeSha256?: string;
+  };
+  subtitles: SyncSubtitleCue[];
+  purpose?: VisualPurpose;
+}
+
+export interface SyncTimeline {
+  version: 1;
+  status: 'verified' | 'legacy-unverified';
+  audioSha256: string;
+  audioDurationMs: number;
+  scriptSha256: string;
+  alignmentPath: string;
+  records: SyncTimelineRecord[];
 }
 
 export interface ImageProvenance {

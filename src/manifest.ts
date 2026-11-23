@@ -12,6 +12,7 @@ import type { Episode, ValidationResult } from './types.js';
 import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
 import { readPersistedImage } from './image-generation.js';
+import { validateSyncTimeline } from './sync.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 export const sha256 = (bytes: Uint8Array | string): string =>
@@ -521,6 +522,15 @@ export async function validateEpisode(
     }
   } else if (Array.isArray(episode.shots) && episode.shots.length > 0) {
     errors.push('alignment plan is required when shots exist');
+  }
+  if (episode.syncTimeline !== undefined) {
+    try {
+      errors.push(...(await validateSyncTimeline(episode, root)).errors);
+    } catch (error) {
+      errors.push(
+        `sync timeline is invalid: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
   return { valid: errors.length === 0, errors };
 }

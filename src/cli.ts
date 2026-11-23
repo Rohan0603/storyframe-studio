@@ -14,6 +14,7 @@ import type { Episode } from './types.js';
 import { densityNote, storyboardMarkdown } from './alignment.js';
 import { recordImagePreflight } from './image-generation.js';
 import { renderStillEpisode } from './render.js';
+import { validateAndWriteTimelineReview } from './sync.js';
 import {
   approveProducerStage,
   assessProducer,
@@ -68,7 +69,7 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|render> <episode-root> [episode-id] [provider]',
+      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|render> <episode-root> [episode-id] [provider]',
     );
   if (command === 'new') {
     await createEpisode(root, episodeId);
@@ -203,6 +204,13 @@ export async function runCli(args: string[]): Promise<number> {
     return 0;
   }
   const episode = await load(root);
+  if (command === 'sync-review') {
+    const result = await validateAndWriteTimelineReview(root, episode);
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.validation.valid && result.status !== 'legacy-unverified')
+      throw new Error(`sync timeline validation failed:\n${result.validation.errors.join('\n')}`);
+    return 0;
+  }
   const validation = await validateEpisode(episode, root);
   if (!validation.valid)
     throw new Error(

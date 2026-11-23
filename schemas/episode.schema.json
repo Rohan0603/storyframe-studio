@@ -49,6 +49,7 @@
     },
     "story": { "$ref": "#/$defs/story" },
     "alignment": { "$ref": "#/$defs/alignment" },
+    "syncTimeline": { "$ref": "#/$defs/syncTimeline" },
     "production": { "$ref": "#/$defs/production" },
     "beats": { "type": "array", "items": { "$ref": "#/$defs/beat" } },
     "shots": { "type": "array", "items": { "$ref": "#/$defs/shot" } },
@@ -361,6 +362,7 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
         },
+        "sceneId": { "type": "string", "minLength": 1 },
         "beatIds": {
           "type": "array",
           "items": { "type": "string" },
@@ -369,6 +371,7 @@
         "audioStartMs": { "type": "integer", "minimum": 0 },
         "audioEndMs": { "type": "integer", "minimum": 1 },
         "requiredVisualEvent": { "type": "string", "minLength": 1 },
+        "imagePrompt": { "type": "string", "minLength": 1 },
         "characters": { "type": "array", "items": { "type": "string" } },
         "props": { "type": "array", "items": { "type": "string" } },
         "environment": { "type": "string", "minLength": 1 },
@@ -561,6 +564,45 @@
             "pattern": "^[a-f0-9]{64}$"
           }
         }
+      }
+    },
+    "syncSubtitle": {
+      "type": "object",
+      "required": ["cueId", "startMs", "endMs", "text", "alignmentStatus"],
+      "properties": {
+        "cueId": { "type": "string", "minLength": 1 },
+        "startMs": { "type": "integer", "minimum": 0 },
+        "endMs": { "type": "integer", "minimum": 1 },
+        "text": { "type": "string", "minLength": 1 },
+        "alignmentStatus": { "enum": ["verified", "provisional", "unknown"] },
+        "sourceWordStart": { "type": "integer", "minimum": 0 },
+        "sourceWordEnd": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "syncRecord": {
+      "type": "object",
+      "required": ["shotId", "sceneId", "startMs", "endMs", "narration", "image", "subtitles"],
+      "properties": {
+        "shotId": { "type": "string", "minLength": 1 },
+        "sceneId": { "type": "string", "minLength": 1 },
+        "startMs": { "type": "integer", "minimum": 0 },
+        "endMs": { "type": "integer", "minimum": 1 },
+        "narration": { "type": "object" },
+        "image": { "type": "object" },
+        "subtitles": { "type": "array", "items": { "$ref": "#/$defs/syncSubtitle" } }
+      }
+    },
+    "syncTimeline": {
+      "type": "object",
+      "required": ["version", "status", "audioSha256", "audioDurationMs", "scriptSha256", "alignmentPath", "records"],
+      "properties": {
+        "version": { "const": 1 },
+        "status": { "enum": ["verified", "legacy-unverified"] },
+        "audioSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "audioDurationMs": { "type": "integer", "minimum": 1 },
+        "scriptSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "alignmentPath": { "type": "string", "minLength": 1 },
+        "records": { "type": "array", "items": { "$ref": "#/$defs/syncRecord" } }
       }
     }
   }

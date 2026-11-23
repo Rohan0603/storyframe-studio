@@ -5,13 +5,13 @@ import {
   readFile,
   rename,
   unlink,
-  writeFile,
 } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { resolveContained } from './paths.js';
 import { sha256 } from './manifest.js';
 import type { Episode } from './types.js';
+import { validateSyncTimeline } from './sync.js';
 
 export interface RenderResult {
   outputPath: string;
@@ -59,10 +59,6 @@ function run(
   });
 }
 
-function concatQuote(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
 async function verifyImage(
   root: string,
   path: string,
@@ -88,6 +84,10 @@ export async function renderStillEpisode(
     throw new Error('render requires verified audio alignment');
   if (!episode.shots.length)
     throw new Error('render requires at least one shot');
+  if (!episode.syncTimeline)
+    throw new Error('render requires an audio-locked sync timeline; legacy episodes are legacy-unverified');
+  const sync = await validateSyncTimeline(episode, root);
+  if (!sync.valid) throw new Error(`render requires a valid sync timeline: ${sync.errors.join('; ')}`);
   const audioPath = await resolveContained(root, episode.narration.audioPath);
   await access(audioPath);
   if (!episode.narration.audioSha256 || !episode.narration.audioDurationMs)
@@ -124,40 +124,42 @@ export async function renderStillEpisode(
     if (error instanceof Error && !/ENOENT/i.test(error.message)) throw error;
   }
   await mkdir(dirname(output), { recursive: true });
-  const concatPath = await resolveContained(
-    root,
-    `.tmp/render-${randomUUID()}.txt`,
-  );
-  await mkdir(dirname(concatPath), { recursive: true });
-  const concat = (
-    await Promise.all(
-      episode.shots.map(async (shot, index) => {
-        const seconds = (shot.audioEndMs - shot.audioStartMs) / 1000;
-        const imagePath = await resolveContained(root, shot.image.path);
-        const line = `file ${concatQuote(imagePath)}\nduration ${seconds.toFixed(3)}`;
-        return index === episode.shots.length - 1
-          ? `${line}\nfile ${concatQuote(imagePath)}`
-          : line;
-      }),
-    )
-  ).join('\n');
-  await writeFile(concatPath, concat, 'utf8');
   const temporaryOutput = `${output}.${randomUUID()}.tmp.mp4`;
   try {
-    await run(options.ffmpegPath ?? 'ffmpeg', [
+    const plannedDurationMs = episode.shots.at(-1)?.audioEndMs ?? 0;
+    const durationCap =
+      episode.narration.audioDurationMs !== undefined &&
+      episode.shots.length > 1 &&
+      plannedDurationMs >= episode.narration.audioDurationMs - 100
+        ? ['-t', (episode.narration.audioDurationMs / 1000).toFixed(3)]
+        : [];
+    const filterParts: string[] = [];
+    for (const [index, shot] of episode.shots.entries()) {
+      const seconds = ((shot.audioEndMs - shot.audioStartMs) / 1000).toFixed(3);
+      filterParts.push(
+        `[${index}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p,trim=duration=${seconds},setpts=PTS-STARTPTS[v${index}]`,
+      );
+    }
+    filterParts.push(
+      `${episode.shots.map((_, index) => `[v${index}]`).join('')}concat=n=${episode.shots.length}:v=1:a=0,format=yuv420p[v]`,
+    );
+    const ffmpegArgs = [
       '-hide_banner',
       '-loglevel',
       'error',
-      '-f',
-      'concat',
-      '-safe',
-      '0',
-      '-i',
-      concatPath,
+    ];
+    for (const shot of episode.shots) {
+      ffmpegArgs.push('-loop', '1', '-i', await resolveContained(root, shot.image.path));
+    }
+    ffmpegArgs.push(
       '-i',
       audioPath,
-      '-vf',
-      'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
+      '-filter_complex',
+      filterParts.join(';'),
+      '-map',
+      '[v]',
+      '-map',
+      `${episode.shots.length}:a:0`,
       '-r',
       '30',
       '-c:v',
@@ -168,11 +170,13 @@ export async function renderStillEpisode(
       'aac',
       '-b:a',
       '192k',
+      ...durationCap,
       '-shortest',
       '-movflags',
       '+faststart',
       temporaryOutput,
-    ]);
+    );
+    await run(options.ffmpegPath ?? 'ffmpeg', ffmpegArgs);
     const probe = JSON.parse(
       (
         await run(options.ffprobePath ?? 'ffprobe', [
@@ -211,7 +215,6 @@ export async function renderStillEpisode(
       durationMs,
     };
   } finally {
-    await unlink(concatPath).catch(() => undefined);
     await unlink(temporaryOutput).catch(() => undefined);
   }
 }
