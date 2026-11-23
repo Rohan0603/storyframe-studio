@@ -52,6 +52,7 @@ async function inputHashes(
     : '';
   const dependencies = JSON.stringify({
     narration: episode.narration,
+    series: episode.series,
     alignment: episode.alignment,
     story: episode.story,
     beats: episode.beats,

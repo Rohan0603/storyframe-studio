@@ -28,6 +28,7 @@ export interface Episode {
   mode: EpisodeMode;
   script: { path: string; sha256: string; approved: boolean };
   referenceBundle: { path: string; sha256: string };
+  series?: SeriesConfiguration;
   referenceBible?: ReferenceBibleManifest;
   narration: {
     provider: NarrationProvider;
@@ -60,6 +61,15 @@ export interface Episode {
     creativeApproval: string | null;
     publishAuthorization: string | null;
   };
+}
+
+export interface SeriesConfiguration {
+  seriesId: string;
+  revisionId: string;
+  biblePath: string;
+  bibleSha256: string;
+  visualFormat: '2d-still' | '3d-still';
+  applied: boolean;
 }
 
 export type ReferenceKind = 'character' | 'prop' | 'environment' | 'style';
@@ -164,6 +174,10 @@ export interface Shot {
     storyRevisionId: string;
     referenceIds: string[];
     referenceHashes: Record<string, string>;
+  };
+  seriesBinding?: {
+    seriesId: string;
+    revisionId: string;
   };
 }
 

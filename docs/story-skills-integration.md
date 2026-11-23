@@ -36,3 +36,10 @@ Claim statuses are `verified`, `disputed`, or `open`. When factual release
 acceptance is requested, every claim must be verified. Character/prop state
 changes must be explicit transitions; contradictory same-beat observations
 fail deterministic validation.
+
+Series continuity is also an explicit optional `episode.series` contract. It
+binds a stable series/revision ID and hashed series bible to the episode,
+records whether the configuration is actually applied, and requires every
+applied shot to carry the matching series binding. Selecting the
+`series-continuity` skill alone is therefore not treated as episode-level
+continuity evidence.

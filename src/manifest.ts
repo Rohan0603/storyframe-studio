@@ -85,6 +85,18 @@ export async function validateEpisode(
     errors.push('script.sha256 must be a SHA-256');
   if (!HASH.test(episode?.referenceBundle?.sha256 ?? ''))
     errors.push('referenceBundle.sha256 must be a SHA-256');
+  if (episode?.series) {
+    const series = episode.series;
+    if (!isStableId(series.seriesId)) errors.push('series.seriesId must be a stable ID');
+    if (!isStableId(series.revisionId)) errors.push('series.revisionId must be a stable ID');
+    if (!HASH.test(series.bibleSha256)) errors.push('series.bibleSha256 must be a SHA-256');
+    if (!['2d-still', '3d-still'].includes(series.visualFormat))
+      errors.push('series.visualFormat must be 2d-still or 3d-still');
+    if (typeof series.applied !== 'boolean') errors.push('series.applied must be boolean');
+    await verifyFile(root, series.biblePath, series.bibleSha256, 'series bible', errors);
+    if (series.applied && (!episode.story || episode.referenceBible?.status !== 'frozen'))
+      errors.push('applied series configuration requires story canon and a frozen reference bible');
+  }
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
     errors.push('narration.textSha256 must be a SHA-256');
   if (
@@ -504,6 +516,14 @@ export async function validateEpisode(
       }
     } else if (episode.referenceBible?.status === 'frozen') {
       errors.push(`shot ${shot.id} is missing a frozen reference binding`);
+    }
+    if (episode.series?.applied) {
+      if (!shot.seriesBinding) errors.push(`shot ${shot.id} is missing a series binding`);
+      else if (
+        shot.seriesBinding.seriesId !== episode.series.seriesId ||
+        shot.seriesBinding.revisionId !== episode.series.revisionId
+      )
+        errors.push(`shot ${shot.id} has a stale series binding`);
     }
   }
   if (episode.alignment !== undefined) {

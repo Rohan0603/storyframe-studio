@@ -117,6 +117,11 @@ to create the CSV and HTML storyboard projections. Legacy v1 episodes remain
 readable and are labeled `legacy-unverified` until this evidence is recorded;
 see [the synchronization migration guide](docs/synchronization.md).
 
+Series continuity is explicit in the optional `episode.series` contract. It
+binds a stable series/revision ID and hashed series bible to the episode and
+requires every applied shot to carry the matching series binding. The
+`series-continuity` skill selection by itself is not continuity evidence.
+
 ## Story development layer
 
 Issue #3 adds a selective Story Skills boundary and offline story data

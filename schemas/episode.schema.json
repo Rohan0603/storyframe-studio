@@ -23,6 +23,7 @@
     "mode": { "enum": ["guided", "auto"] },
     "script": { "$ref": "#/$defs/hashedPath" },
     "referenceBundle": { "$ref": "#/$defs/hashedPath" },
+    "series": { "$ref": "#/$defs/seriesConfiguration" },
     "referenceBible": { "$ref": "#/$defs/referenceBibleManifest" },
     "narration": {
       "type": "object",
@@ -393,6 +394,7 @@
           }
         },
         "referenceBinding": { "$ref": "#/$defs/referenceBinding" },
+        "seriesBinding": { "$ref": "#/$defs/seriesBinding" },
         "image": { "$ref": "#/$defs/imageOutput" },
         "semanticReview": { "$ref": "#/$defs/semanticReview" }
       }
@@ -564,6 +566,26 @@
             "pattern": "^[a-f0-9]{64}$"
           }
         }
+      }
+    },
+    "seriesConfiguration": {
+      "type": "object",
+      "required": ["seriesId", "revisionId", "biblePath", "bibleSha256", "visualFormat", "applied"],
+      "properties": {
+        "seriesId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+        "revisionId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+        "biblePath": { "type": "string", "minLength": 1 },
+        "bibleSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "visualFormat": { "enum": ["2d-still", "3d-still"] },
+        "applied": { "type": "boolean" }
+      }
+    },
+    "seriesBinding": {
+      "type": "object",
+      "required": ["seriesId", "revisionId"],
+      "properties": {
+        "seriesId": { "type": "string", "minLength": 1 },
+        "revisionId": { "type": "string", "minLength": 1 }
       }
     },
     "syncSubtitle": {
