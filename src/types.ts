@@ -78,7 +78,12 @@ export interface SeriesConfiguration {
   visualFormat: '2d-still' | '3d-still';
   applied: boolean;
   /** Immutable per-episode snapshot of time-versioned visual states. */
-  evolution?: { path: string; sha256: string; episodeOrder: number };
+  evolution?: {
+    path: string;
+    sha256: string;
+    episodeOrder: number;
+    predecessor?: { path: string; sha256: string; manifestPath: string; manifestSha256: string; legacyMigrationNotes?: string };
+  };
 }
 
 export type ReferenceKind = 'character' | 'prop' | 'environment' | 'style';
@@ -177,6 +182,7 @@ export interface Shot {
     reviewedImageSha256: string | null;
     notes: string;
     pixelsDecoded?: boolean;
+    reviewedPacketSha256?: string;
     screening?: {
       imageSha256: string;
       collage: 'clear' | 'suspected' | 'unknown';

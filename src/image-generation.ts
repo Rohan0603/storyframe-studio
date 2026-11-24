@@ -16,6 +16,7 @@ import {
 } from './reference-bible.js';
 import { hashNormalizedSpokenText } from './story-layer.js';
 import type { Episode, ReferenceBible, Shot } from './types.js';
+import { loadEpisodeEvolution, validateResolvedShotEvolution, type ValidatedEpisodeEvolution } from './series-evolution.js';
 
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -52,6 +53,8 @@ export interface ShotPromptPacket {
   referenceBinding: NonNullable<Shot['referenceBinding']>;
   /** Explicit current appearance/prop variant IDs included in the prompt hash. */
   activeSeriesStates?: Record<string, string>;
+  imagePrompt?: string;
+  seriesSnapshotSha256?: string;
   /** Only references bound to the current state; never silently fall back. */
   activeStateVisualCanon?: Array<{
     entityId: string;
@@ -254,6 +257,7 @@ export function createShotPromptPacket(
   shot: Shot,
   scriptText: string,
   validatedReferences?: ValidatedReferenceBible,
+  validatedEvolution?: ValidatedEpisodeEvolution,
 ): ShotPromptPacket {
   if (!shot.referenceBinding)
     throw new Error(`shot ${shot.id} requires a frozen reference binding`);
@@ -336,6 +340,12 @@ export function createShotPromptPacket(
         `shot ${shot.id} reference binding does not match loaded reference bible`,
       );
   }
+  if (episode.series?.evolution) {
+    if (!validatedEvolution) throw new Error('generation requires validated series evolution');
+    const errors = validateResolvedShotEvolution(episode, shot, validatedEvolution, validatedReferences.bible);
+    if (errors.length) throw new Error(errors.join('; '));
+  }
+  if (episode.imagePolicy && !shot.imagePrompt?.trim()) throw new Error('strict image generation requires an exact image prompt');
   const activeStateVisualCanon = Object.entries(
     shot.seriesBinding?.entityStates ?? {},
   ).map(([entityId, stateId]) => ({
@@ -364,6 +374,8 @@ export function createShotPromptPacket(
     crop: shot.composition,
     forbidden: shot.forbidden,
     referenceBinding: shot.referenceBinding,
+    ...(episode.imagePolicy || episode.series?.evolution ? { imagePrompt: shot.imagePrompt ?? '' } : {}),
+    ...(validatedEvolution ? { seriesSnapshotSha256: validatedEvolution.snapshotSha256 } : {}),
     ...(shot.seriesBinding?.entityStates
       ? {
           activeSeriesStates: shot.seriesBinding.entityStates,
@@ -814,4 +826,32 @@ export function validateSemanticSequence(
     else cursor = next;
   }
   return { valid: reasons.length === 0, reasons };
+}
+
+
+/** Native generation callers must use this gate for a new series episode. */
+export async function createValidatedShotPromptPacket(
+  root: string,
+  episode: Episode,
+  shotId: string,
+): Promise<ShotPromptPacket> {
+  const shot = episode.shots.find((item) => item.id === shotId);
+  if (!shot || !episode.referenceBible || !episode.story)
+    throw new Error('generation requires a known shot and approved reference bible');
+  const bytes = await readFile(await resolveContained(root, episode.referenceBible.path));
+  if (sha256(bytes) !== episode.referenceBible.sha256 || episode.referenceBible.status !== 'frozen')
+    throw new Error('generation requires current frozen reference bible bytes');
+  const bible = JSON.parse(bytes.toString('utf8')) as ReferenceBible;
+  const validatedReferences = await loadValidatedReferenceBible(root, bible, {
+    storyRevisionId: episode.story.scriptRevision.id,
+    storyRevisionSha256: episode.story.scriptRevision.textSha256,
+    canonSha256: episode.referenceBible.canonSha256,
+    canon: episode.story.canon,
+  });
+  const evolution = episode.series?.evolution
+    ? await loadEpisodeEvolution(root, episode)
+    : undefined;
+  if (episode.imagePolicy && episode.series && !evolution)
+    throw new Error('new series generation requires evolving visual canon');
+  return createShotPromptPacket(episode, shot, episode.story.scriptRevision.text, validatedReferences, evolution);
 }

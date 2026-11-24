@@ -191,7 +191,7 @@ export async function validateReferenceBible(
     expected?.canonSha256,
   );
   for (const entry of Array.isArray(bible?.entries) ? bible.entries : []) {
-    if (entry?.canonEntityId && expected?.canon) {
+    if (entry?.canonEntityId && expected?.canon && ['character', 'prop'].includes(entry.kind)) {
       const character = expected.canon.characters.find(
         (entity) => entity.id === entry.canonEntityId,
       );

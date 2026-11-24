@@ -11,13 +11,14 @@ import {
 import type { Episode, ValidationResult } from './types.js';
 import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
-import { readPersistedImage } from './image-generation.js';
+import { createShotPromptPacket, readPersistedImage } from './image-generation.js';
 import { validateSyncTimeline } from './sync.js';
 import {
-  loadSeriesEvolution,
-  validateShotEvolution,
+  loadEpisodeEvolution,
+  validateResolvedShotEvolution,
 } from './series-evolution.js';
-import type { SeriesEvolution } from './series-evolution.js';
+import type { ValidatedEpisodeEvolution } from './series-evolution.js';
+import type { ReferenceBible } from './types.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 export const sha256 = (bytes: Uint8Array | string): string =>
@@ -90,7 +91,8 @@ export async function validateEpisode(
     errors.push('script.sha256 must be a SHA-256');
   if (!HASH.test(episode?.referenceBundle?.sha256 ?? ''))
     errors.push('referenceBundle.sha256 must be a SHA-256');
-  let seriesEvolution: SeriesEvolution | null = null;
+  let seriesEvolution: ValidatedEpisodeEvolution | null = null;
+  const strict = Boolean(episode.imagePolicy || episode.series?.evolution);
   if (episode?.series) {
     const series = episode.series;
     if (!isStableId(series.seriesId))
@@ -104,10 +106,13 @@ export async function validateEpisode(
     if (typeof series.applied !== 'boolean')
       errors.push('series.applied must be boolean');
     if (series.evolution) {
-      const loaded = await loadSeriesEvolution(root, series);
-      errors.push(...loaded.errors);
-      if (loaded.errors.length === 0) seriesEvolution = loaded.evolution;
+      try {
+        seriesEvolution = await loadEpisodeEvolution(root, episode);
+      } catch (error) {
+        errors.push('series evolution: ' + (error instanceof Error ? error.message : String(error)));
+      }
     }
+    if (strict && (!series.applied || !series.evolution)) errors.push('strict series production requires applied evolution');
     await verifyFile(
       root,
       series.biblePath,
@@ -170,6 +175,7 @@ export async function validateEpisode(
       'reference bundle',
       errors,
     );
+  let parsedReferenceBible: ReferenceBible | null = null;
   let loadedReferenceBible: Awaited<
     ReturnType<typeof validateReferenceBible>
   > | null = null;
@@ -187,6 +193,7 @@ export async function validateEpisode(
       const parsed = JSON.parse(bibleBytes.toString('utf8')) as Parameters<
         typeof validateReferenceBible
       >[1];
+      parsedReferenceBible = parsed;
       const expected = episode.story
         ? {
             storyRevisionId: episode.story.scriptRevision.id,
@@ -352,10 +359,7 @@ export async function validateEpisode(
           errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
-  for (const [shotIndex, shot] of (Array.isArray(episode?.shots)
-    ? episode.shots
-    : []
-  ).entries()) {
+  for (const shot of Array.isArray(episode?.shots) ? episode.shots : []) {
     if (!shot || typeof shot !== 'object') {
       errors.push('shot must be an object');
       continue;
@@ -592,7 +596,7 @@ export async function validateEpisode(
           ...shot.props,
           shot.environment,
         ]) {
-          const tracked = seriesEvolution?.entities.some(
+          const tracked = seriesEvolution?.evolution.entities.some(
             (entity) => entity.entityId === required,
           );
           if (!tracked && !binding.referenceIds.includes(required))
@@ -604,15 +608,28 @@ export async function validateEpisode(
     } else if (episode.referenceBible?.status === 'frozen') {
       errors.push(`shot ${shot.id} is missing a frozen reference binding`);
     }
-    if (seriesEvolution && episode.series?.evolution) {
-      errors.push(
-        ...validateShotEvolution(
-          seriesEvolution,
-          episode.series.evolution.episodeOrder,
-          shot,
-          shotIndex,
-        ),
-      );
+    if (seriesEvolution && parsedReferenceBible && shot.characters && shot.props) {
+      try {
+        errors.push(...validateResolvedShotEvolution(episode, shot, seriesEvolution, parsedReferenceBible));
+      } catch (error) {
+        errors.push('shot evolution: ' + (error instanceof Error ? error.message : String(error)));
+      }
+    }
+    if (strict && shot.image.sha256 !== null) {
+      try {
+        if (!parsedReferenceBible || !loadedReferenceBible?.valid || !episode.story)
+          throw new Error('strict image requires validated frozen references and script');
+        const packet = createShotPromptPacket(
+          episode, shot, episode.story.scriptRevision.text,
+          { bible: parsedReferenceBible, freezeSha256: loadedReferenceBible.freezeSha256, valid: true },
+          seriesEvolution ?? undefined,
+        );
+        if (shot.image.provenance?.packetSha256 !== packet.packetSha256 ||
+            (shot.semanticReview.status === 'pass' && shot.semanticReview.reviewedPacketSha256 !== packet.packetSha256))
+          errors.push(`shot ${shot.id} image or pixel review is stale for current prompt and reference state`);
+      } catch (error) {
+        errors.push('strict image packet: ' + (error instanceof Error ? error.message : String(error)));
+      }
     }
     if (episode.series?.applied) {
       if (!shot.seriesBinding)
