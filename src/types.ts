@@ -70,6 +70,8 @@ export interface SeriesConfiguration {
   bibleSha256: string;
   visualFormat: '2d-still' | '3d-still';
   applied: boolean;
+  /** Immutable per-episode snapshot of time-versioned visual states. */
+  evolution?: { path: string; sha256: string; episodeOrder: number };
 }
 
 export type ReferenceKind = 'character' | 'prop' | 'environment' | 'style';
@@ -178,6 +180,8 @@ export interface Shot {
   seriesBinding?: {
     seriesId: string;
     revisionId: string;
+    /** Active, immutable appearance/prop state for entities used by this shot. */
+    entityStates?: Record<string, string>;
   };
 }
 
@@ -231,6 +235,8 @@ export interface ImageProvenance {
   tool: 'codex-desktop.image_gen';
   packetSha256: string;
   attemptId: string;
+  /** ID actually returned by the native generator. Never infer from shot or attempt IDs. */
+  nativeReceiptId?: string;
   receiptStatus: 'persisted' | 'reconciled';
   width: number;
   height: number;
