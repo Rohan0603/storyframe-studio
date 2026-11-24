@@ -120,6 +120,11 @@ export async function validateEpisode(
         'applied series configuration requires story canon and a frozen reference bible',
       );
   }
+  if (episode.imagePolicy && (
+    episode.imagePolicy.width !== 1920 || episode.imagePolicy.height !== 1080 ||
+    typeof episode.imagePolicy.requireNativeReceipt !== 'boolean' ||
+    typeof episode.imagePolicy.requireVisualScreening !== 'boolean'
+  )) errors.push('imagePolicy must define 1920x1080 and both QA switches');
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
     errors.push('narration.textSha256 must be a SHA-256');
   if (
@@ -414,6 +419,14 @@ export async function validateEpisode(
           errors.push(
             `image ${shot.id} has invalid provenance receipt or dimensions`,
           );
+        if (episode.imagePolicy?.requireNativeReceipt && !provenance.nativeReceiptId?.trim())
+          errors.push(`image ${shot.id} lacks a genuine native provider receipt ID`);
+        if (provenance.nativeImage) {
+          const native = provenance.nativeImage;
+          if (!HASH.test(native.sha256) || native.width < 1 || native.height < 1)
+            errors.push(`image ${shot.id} has invalid native image provenance`);
+          else await verifyFile(root, native.path, native.sha256, `native image ${shot.id}`, errors);
+        }
       }
     }
     if (
@@ -449,6 +462,10 @@ export async function validateEpisode(
         const inspected = await readPersistedImage(root, shot.image.path);
         if (inspected.sha256 !== shot.image.sha256)
           errors.push(`image ${shot.id} decode hash mismatch`);
+        if (episode.imagePolicy &&
+          (inspected.width !== episode.imagePolicy.width ||
+            inspected.height !== episode.imagePolicy.height))
+          errors.push(`image ${shot.id} must be normalized to 1920x1080`);
         if (!shot.image.provenance)
           errors.push(`image ${shot.id} is missing generation provenance`);
         else if (
@@ -461,6 +478,14 @@ export async function validateEpisode(
           `image ${shot.id} cannot be decoded: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+    }
+    if (episode.imagePolicy?.requireVisualScreening &&
+      shot.image.sha256 !== null) {
+      const screening = shot.semanticReview.screening;
+      if (!screening || screening.imageSha256 !== shot.image.sha256 ||
+          screening.collage !== 'clear' || screening.text !== 'clear' ||
+          !screening.checkedBy?.trim() || !screening.notes?.trim())
+        errors.push(`image ${shot.id} has unresolved collage or visual-text screening`);
     }
     if (
       shot.semanticReview.status === 'pass' &&
