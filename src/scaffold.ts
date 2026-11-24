@@ -12,6 +12,12 @@ const emptyEpisode = (
   schemaVersion: 1,
   episodeId,
   mode: 'guided',
+  imagePolicy: {
+    width: 1920,
+    height: 1080,
+    requireNativeReceipt: true,
+    requireVisualScreening: true,
+  },
   script: { path: 'script.md', sha256: scriptHash, approved: false },
   referenceBundle: { path: 'references/bundle.json', sha256: bundleHash },
   narration: {

@@ -159,6 +159,16 @@ describe('FFmpeg still renderer', () => {
     };
     await writeFile(join(root, 'script.md'), 'A.');
     await writeFile(join(root, 'bundle.json'), '{}');
+    const strict = structuredClone(episode);
+    strict.imagePolicy = {
+      width: 1920,
+      height: 1080,
+      requireNativeReceipt: true,
+      requireVisualScreening: true,
+    };
+    await expect(
+      renderStillEpisode(root, strict, { outputPath: 'strict.mp4' }),
+    ).rejects.toThrow(/strict manifest validation/);
     const result = await renderStillEpisode(root, episode, {
       outputPath: 'video.mp4',
     });

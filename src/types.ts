@@ -29,6 +29,13 @@ export interface Episode {
   script: { path: string; sha256: string; approved: boolean };
   referenceBundle: { path: string; sha256: string };
   series?: SeriesConfiguration;
+  /** Strict production gates opt-in; old episodes stay readable. */
+  imagePolicy?: {
+    width: 1920;
+    height: 1080;
+    requireNativeReceipt: boolean;
+    requireVisualScreening: boolean;
+  };
   referenceBible?: ReferenceBibleManifest;
   narration: {
     provider: NarrationProvider;
@@ -36,6 +43,7 @@ export interface Episode {
     audioPath: string;
     alignmentPath: string;
     alignmentVerified: boolean;
+    alignmentSha256?: string;
     model?: string;
     voiceName?: string;
     audioSha256?: string;
@@ -60,6 +68,14 @@ export interface Episode {
     productionQAPassed: boolean;
     creativeApproval: string | null;
     publishAuthorization: string | null;
+    youtubeTarget?: {
+      videoId: string;
+      state: 'scheduled' | 'public';
+      publishAt?: string;
+      videoPath: string;
+      videoSha256: string;
+    };
+    youtubeVerification?: { path: string; sha256: string };
   };
 }
 
@@ -70,6 +86,19 @@ export interface SeriesConfiguration {
   bibleSha256: string;
   visualFormat: '2d-still' | '3d-still';
   applied: boolean;
+  /** Immutable per-episode snapshot of time-versioned visual states. */
+  evolution?: {
+    path: string;
+    sha256: string;
+    episodeOrder: number;
+    predecessor?: {
+      path: string;
+      sha256: string;
+      manifestPath: string;
+      manifestSha256: string;
+      legacyMigrationNotes?: string;
+    };
+  };
 }
 
 export type ReferenceKind = 'character' | 'prop' | 'environment' | 'style';
@@ -168,6 +197,29 @@ export interface Shot {
     reviewedImageSha256: string | null;
     notes: string;
     pixelsDecoded?: boolean;
+    reviewedPacketSha256?: string;
+    pixelEvidence?: {
+      path: string;
+      sha256: string;
+      shotId: string;
+      requiredVisualEvent: string;
+      characters: string[];
+      props: string[];
+      environment: string;
+      packetSha256: string;
+      referenceFreezeSha256?: string;
+      reviewedBy: string;
+    };
+    screening?: {
+      imageSha256: string;
+      collage: 'clear' | 'suspected' | 'unknown';
+      text: 'clear' | 'detected' | 'unknown';
+      checkedBy: string;
+      notes: string;
+      evidencePath?: string;
+      evidenceSha256?: string;
+      allowedText?: string[];
+    };
   };
   referenceBinding?: {
     freezeSha256: string;
@@ -178,6 +230,8 @@ export interface Shot {
   seriesBinding?: {
     seriesId: string;
     revisionId: string;
+    /** Active, immutable appearance/prop state for entities used by this shot. */
+    entityStates?: Record<string, string>;
   };
 }
 
@@ -231,6 +285,20 @@ export interface ImageProvenance {
   tool: 'codex-desktop.image_gen';
   packetSha256: string;
   attemptId: string;
+  /** ID actually returned by the native generator. Never infer from shot or attempt IDs. */
+  nativeReceiptId?: string;
+  journalPath?: string;
+  journalEntrySha256?: string;
+  providerEvidence?: {
+    path: string;
+    sha256: string;
+    source: 'codex-desktop.image_gen';
+    responseSha256: string;
+    dispatchToken: string;
+  };
+  normalizationReceipt?: { path: string; sha256: string };
+  /** Original native output preserved separately when normalized. */
+  nativeImage?: { path: string; sha256: string; width: number; height: number };
   receiptStatus: 'persisted' | 'reconciled';
   width: number;
   height: number;

@@ -190,11 +190,15 @@ export function stageFingerprint(
   if (rank >= 2)
     inputs.push(
       episode.beats,
+      episode.series,
+      episode.imagePolicy,
       episode.syncTimeline,
       episode.shots.map((shot) => ({
         id: shot.id,
         beatIds: shot.beatIds,
         requiredVisualEvent: shot.requiredVisualEvent,
+        imagePrompt: shot.imagePrompt,
+        seriesBinding: shot.seriesBinding,
         characters: shot.characters,
         props: shot.props,
         environment: shot.environment,
@@ -219,6 +223,7 @@ export function stageFingerprint(
       episode.narration.audioSha256,
       episode.narration.audioDurationMs,
       episode.narration.alignmentVerified,
+      episode.narration.alignmentSha256,
       episode.alignment,
     );
   if (rank >= 6) inputs.push(episode.narration.captionsPath);
@@ -282,7 +287,50 @@ async function approvedAlignment(
       alignment.transcriptSha256 !== episode.narration.textSha256
     )
       throw new Error('alignment is not bound to current transcript/audio');
-    createSrt(alignment);
+    if (alignment.granularity === 'phrase') {
+      if (!episode.syncTimeline)
+        throw new Error(
+          'phrase alignment requires an audio-locked subtitle timeline',
+        );
+      const checked = await validateSyncTimeline(episode, root);
+      if (!checked.valid)
+        throw new Error(
+          'phrase sync timeline is invalid: ' + checked.errors.join('; '),
+        );
+      if (!alignment.evidenceNotes?.trim() || !alignment.phrases?.length)
+        throw new Error(
+          'phrase alignment requires explicit measured phrase evidence',
+        );
+      let previousEnd = 0;
+      for (const phrase of alignment.phrases) {
+        if (
+          !phrase.text?.trim() ||
+          !Number.isInteger(phrase.startMs) ||
+          !Number.isInteger(phrase.endMs) ||
+          phrase.startMs < previousEnd ||
+          phrase.endMs <= phrase.startMs ||
+          phrase.endMs > alignment.durationMs
+        )
+          throw new Error(
+            'phrase alignment has invalid or overlapping measured intervals',
+          );
+        previousEnd = phrase.endMs;
+      }
+      const phrasesText = alignment.phrases
+        .map((p) => p.text)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const timelineText = episode.syncTimeline.records
+        .map((r) => r.narration.text)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (phrasesText !== timelineText)
+        throw new Error(
+          'phrase evidence does not match the synchronized narration',
+        );
+    } else createSrt(alignment);
     return { alignment, reasons };
   } catch (error) {
     reasons.push(

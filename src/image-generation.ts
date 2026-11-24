@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import {
   lstat,
@@ -12,10 +12,16 @@ import { dirname, join, relative, sep } from 'node:path';
 import { assertSafeRelativePath, resolveContained } from './paths.js';
 import {
   freezeReferenceBible,
+  canonHash,
   validateReferenceBible,
 } from './reference-bible.js';
 import { hashNormalizedSpokenText } from './story-layer.js';
 import type { Episode, ReferenceBible, Shot } from './types.js';
+import {
+  loadEpisodeEvolution,
+  validateResolvedShotEvolution,
+  type ValidatedEpisodeEvolution,
+} from './series-evolution.js';
 
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -50,6 +56,21 @@ export interface ShotPromptPacket {
   crop: string;
   forbidden: string[];
   referenceBinding: NonNullable<Shot['referenceBinding']>;
+  /** Explicit current appearance/prop variant IDs included in the prompt hash. */
+  activeSeriesStates?: Record<string, string>;
+  imagePrompt?: string;
+  seriesSnapshotSha256?: string;
+  seriesBinding?: {
+    seriesId: string;
+    revisionId: string;
+    bibleSha256: string;
+  };
+  /** Only references bound to the current state; never silently fall back. */
+  activeStateVisualCanon?: Array<{
+    entityId: string;
+    stateId: string;
+    references: Array<{ id: string; sha256: string; visualCanon: string }>;
+  }>;
   storyRevisionId: string;
   scriptRevisionSha256: string;
   packetSha256: string;
@@ -76,6 +97,10 @@ export interface BatchPlan {
 export interface ImageReceipt {
   batchId?: string;
   attemptId: string;
+  dispatchToken: string;
+  /** Real provider receipt, if the native client exposed one. */
+  nativeReceiptId?: string;
+  providerEvidence?: { path: string; sha256: string };
   shotId?: string;
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
@@ -92,6 +117,9 @@ export type ReceiptTransition =
   | { status: 'dispatched' }
   | {
       status: 'persisted';
+      dispatchToken?: string;
+      nativeReceiptId?: string;
+      providerEvidence?: { path: string; sha256: string };
       outputPath: string;
       sha256: string;
       width: number;
@@ -144,6 +172,7 @@ export function createDispatchReceipt(
     );
   return {
     attemptId,
+    dispatchToken: randomUUID(),
     shotId,
     packetSha256,
     tool: 'codex-desktop.image_gen',
@@ -177,7 +206,18 @@ export function transitionReceipt(
     throw new Error(`receipt cannot transition from ${receipt.status}`);
   if (transition.status === 'dispatched')
     throw new Error('receipt cannot retry without an explicit new attempt');
-  return { ...receipt, ...transition, recordedAt: new Date().toISOString() };
+  if (
+    transition.status === 'persisted' &&
+    transition.dispatchToken &&
+    transition.dispatchToken !== receipt.dispatchToken
+  )
+    throw new Error('dispatch token cannot change after dispatch');
+  return {
+    ...receipt,
+    ...transition,
+    dispatchToken: receipt.dispatchToken,
+    recordedAt: new Date().toISOString(),
+  };
 }
 
 export function reconcileReceipt(
@@ -186,9 +226,16 @@ export function reconcileReceipt(
 ): ImageReceipt {
   if (receipt.status !== 'unknown')
     throw new Error('only unknown receipts can be reconciled');
+  if (
+    transition.status === 'persisted' &&
+    transition.dispatchToken &&
+    transition.dispatchToken !== receipt.dispatchToken
+  )
+    throw new Error('dispatch token cannot change during reconciliation');
   return {
     ...receipt,
     ...transition,
+    dispatchToken: receipt.dispatchToken,
     status: 'reconciled',
     recordedAt: new Date().toISOString(),
   };
@@ -203,6 +250,8 @@ export interface PixelInspection {
   continuityMatches: boolean;
   forbiddenTextPresent: boolean;
   staleReferences: boolean;
+  collageSuspected?: boolean;
+  unwantedLogoPresent?: boolean;
   notes: string;
 }
 
@@ -216,6 +265,14 @@ export interface ImageOutputMetadata {
   attemptId: string;
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
+  nativeReceiptId?: string;
+  providerEvidence?: {
+    path: string;
+    sha256: string;
+    source: 'codex-desktop.image_gen';
+    responseSha256: string;
+    dispatchToken: string;
+  };
 }
 
 function stableJson(value: unknown): string {
@@ -240,6 +297,7 @@ export function createShotPromptPacket(
   shot: Shot,
   scriptText: string,
   validatedReferences?: ValidatedReferenceBible,
+  validatedEvolution?: ValidatedEpisodeEvolution,
 ): ShotPromptPacket {
   if (!shot.referenceBinding)
     throw new Error(`shot ${shot.id} requires a frozen reference binding`);
@@ -322,6 +380,36 @@ export function createShotPromptPacket(
         `shot ${shot.id} reference binding does not match loaded reference bible`,
       );
   }
+  if (episode.series?.evolution) {
+    if (!validatedEvolution)
+      throw new Error('generation requires validated series evolution');
+    const errors = validateResolvedShotEvolution(
+      episode,
+      shot,
+      validatedEvolution,
+      validatedReferences.bible,
+    );
+    if (errors.length) throw new Error(errors.join('; '));
+  }
+  if (episode.imagePolicy && !shot.imagePrompt?.trim())
+    throw new Error('strict image generation requires an exact image prompt');
+  const activeStateVisualCanon = Object.entries(
+    shot.seriesBinding?.entityStates ?? {},
+  ).map(([entityId, stateId]) => ({
+    entityId,
+    stateId,
+    references: validatedReferences.bible.entries
+      .filter(
+        (entry) =>
+          entry.canonEntityId === entityId &&
+          shot.referenceBinding!.referenceIds.includes(entry.id),
+      )
+      .map((entry) => ({
+        id: entry.id,
+        sha256: entry.image.sha256,
+        visualCanon: entry.visualCanon,
+      })),
+  }));
   const packetWithoutHash = {
     shotId: shot.id,
     beatIds: shot.beatIds,
@@ -333,8 +421,29 @@ export function createShotPromptPacket(
     crop: shot.composition,
     forbidden: shot.forbidden,
     referenceBinding: shot.referenceBinding,
+    ...(episode.imagePolicy || episode.series?.evolution
+      ? { imagePrompt: shot.imagePrompt ?? '' }
+      : {}),
+    ...(validatedEvolution
+      ? { seriesSnapshotSha256: validatedEvolution.snapshotSha256 }
+      : {}),
+    ...(shot.seriesBinding?.entityStates
+      ? {
+          activeSeriesStates: shot.seriesBinding.entityStates,
+          activeStateVisualCanon,
+        }
+      : {}),
     storyRevisionId: revision.id,
     scriptRevisionSha256: revision.textSha256,
+    ...(episode.series
+      ? {
+          seriesBinding: {
+            seriesId: episode.series.seriesId,
+            revisionId: episode.series.revisionId,
+            bibleSha256: episode.series.bibleSha256,
+          },
+        }
+      : {}),
   };
   return {
     ...packetWithoutHash,
@@ -535,6 +644,8 @@ export async function ingestImageOutput(
   sha256: string;
   width: number;
   height: number;
+  nativeReceiptId?: string;
+  providerEvidence?: { path: string; sha256: string };
 }> {
   const target = await resolveContained(root, outputPath);
   let dimensions: { width: number; height: number };
@@ -563,7 +674,17 @@ export async function ingestImageOutput(
   }
   assertSafeRelativePath(metadata.attemptId, 'attempt ID');
   await writeFile(target, bytes, { flag: 'wx' });
-  return { status: 'persisted', sha256: sha256(bytes), ...dimensions };
+  return {
+    status: 'persisted',
+    sha256: sha256(bytes),
+    ...dimensions,
+    ...(metadata.nativeReceiptId
+      ? { nativeReceiptId: metadata.nativeReceiptId }
+      : {}),
+    ...(metadata.providerEvidence
+      ? { providerEvidence: metadata.providerEvidence }
+      : {}),
+  };
 }
 
 async function assertRegularOrMissing(path: string): Promise<void> {
@@ -595,6 +716,9 @@ export function inspectPixels(inspection: PixelInspection): PixelReviewResult {
   if (inspection.forbiddenTextPresent)
     reasons.push('unwanted text is present in pixels');
   if (inspection.staleReferences) reasons.push('references are stale');
+  if (inspection.collageSuspected)
+    reasons.push('suspected multi-panel or contact sheet image');
+  if (inspection.unwantedLogoPresent) reasons.push('unwanted logo is visible');
   if (!inspection.notes.trim())
     reasons.push('independent pixel review notes are missing');
   return {
@@ -774,4 +898,53 @@ export function validateSemanticSequence(
     else cursor = next;
   }
   return { valid: reasons.length === 0, reasons };
+}
+
+/** Native generation callers must use this gate for a new series episode. */
+export async function createValidatedShotPromptPacket(
+  root: string,
+  episode: Episode,
+  shotId: string,
+): Promise<ShotPromptPacket> {
+  const shot = episode.shots.find((item) => item.id === shotId);
+  if (!shot || !episode.referenceBible || !episode.story)
+    throw new Error(
+      'generation requires a known shot and approved reference bible',
+    );
+  const script = await readFile(
+    await resolveContained(root, episode.script.path),
+  );
+  if (
+    !episode.script.approved ||
+    sha256(script) !== episode.script.sha256 ||
+    script.toString('utf8') !== episode.story.scriptRevision.text
+  )
+    throw new Error('generation requires the approved exact script bytes');
+  const bytes = await readFile(
+    await resolveContained(root, episode.referenceBible.path),
+  );
+  if (
+    sha256(bytes) !== episode.referenceBible.sha256 ||
+    episode.referenceBible.status !== 'frozen'
+  )
+    throw new Error('generation requires current frozen reference bible bytes');
+  const bible = JSON.parse(bytes.toString('utf8')) as ReferenceBible;
+  const validatedReferences = await loadValidatedReferenceBible(root, bible, {
+    storyRevisionId: episode.story.scriptRevision.id,
+    storyRevisionSha256: episode.story.scriptRevision.textSha256,
+    canonSha256: canonHash(episode.story.canon),
+    canon: episode.story.canon,
+  });
+  const evolution = episode.series?.evolution
+    ? await loadEpisodeEvolution(root, episode)
+    : undefined;
+  if (episode.imagePolicy && episode.series && !evolution)
+    throw new Error('new series generation requires evolving visual canon');
+  return createShotPromptPacket(
+    episode,
+    shot,
+    episode.story.scriptRevision.text,
+    validatedReferences,
+    evolution,
+  );
 }

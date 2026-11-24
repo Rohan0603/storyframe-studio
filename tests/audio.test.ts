@@ -71,6 +71,34 @@ def write(path, samples, sample_rate, subtype):
       { word: 'blue', startMs: 300, endMs: 600 },
     ]);
     expect(result.alignmentPath).toBe('audio/alignment.json');
+    expect(result.alignment?.verified).toBe(false);
+    expect(result.alignment?.wordEvidence).toBe('group-count-only');
+    const measured = await synthesizeKokoroTts(root, {
+      approvedText: 'The blue',
+      transcript: 'The blue',
+      pythonExecutable: 'python',
+      modelPath: 'model.onnx',
+      voicesPath: 'voices.bin',
+      voice: 'af_heart',
+      environment: { PYTHONPATH: pythonModules },
+      outputPath: 'audio/phrases.wav',
+      alignmentPath: 'audio/phrases.json',
+      phraseSpans: [
+        { startChar: 0, endChar: 3 },
+        { startChar: 4, endChar: 8 },
+      ],
+    });
+    expect(measured.alignment?.granularity).toBe('phrase');
+    expect(measured.alignment?.verified).toBe(true);
+    expect(measured.alignment?.words).toEqual([]);
+    expect(measured.alignment?.phrases?.map((phrase) => phrase.text)).toEqual([
+      'The',
+      'blue',
+    ]);
+    expect(measured.alignment?.phrases?.at(-1)?.endMs).toBe(
+      measured.durationMs,
+    );
+    expect(measured.alignmentSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(
       JSON.parse(
         await readFile(
