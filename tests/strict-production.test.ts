@@ -320,6 +320,15 @@ describe('strict production integration', () => {
     episode.release.productionQAPassed = true;
     for (const shot of episode.shots) {
       shot.image.status = 'approved';
+      shot.image.provenance = {
+        tool: 'codex-desktop.image_gen',
+        packetSha256: 'a'.repeat(64),
+        attemptId: `archived-${shot.id}`,
+        nativeReceiptId: `archived-receipt-${shot.id}`,
+        receiptStatus: 'persisted',
+        width: 1,
+        height: 1,
+      };
       shot.semanticReview = {
         status: 'pass',
         reviewedImageSha256: shot.image.sha256,

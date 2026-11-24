@@ -361,6 +361,9 @@ export async function loadEpisodeEvolution(
           shotId?: string;
           imageSha256?: string;
           requiredVisualEvent?: string;
+          characters?: string[];
+          props?: string[];
+          environment?: string;
           packetSha256?: string;
           pixelsDecoded?: boolean;
           requiredActionPresent?: boolean;
@@ -377,7 +380,11 @@ export async function loadEpisodeEvolution(
           pixel.shotId !== shot.id ||
           pixel.imageSha256 !== shot.image.sha256 ||
           pixel.requiredVisualEvent !== shot.requiredVisualEvent ||
-          !pixel.packetSha256 ||
+          JSON.stringify(pixel.characters) !==
+            JSON.stringify(shot.characters) ||
+          JSON.stringify(pixel.props) !== JSON.stringify(shot.props) ||
+          pixel.environment !== shot.environment ||
+          pixel.packetSha256 !== shot.image.provenance?.packetSha256 ||
           pixel.pixelsDecoded !== true ||
           pixel.requiredActionPresent !== true ||
           pixel.requiredCharactersPresent !== true ||
