@@ -24,6 +24,17 @@
     "script": { "$ref": "#/$defs/hashedPath" },
     "referenceBundle": { "$ref": "#/$defs/hashedPath" },
     "series": { "$ref": "#/$defs/seriesConfiguration" },
+    "imagePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "requireNativeReceipt", "requireVisualScreening"],
+      "properties": {
+        "width": { "const": 1920 },
+        "height": { "const": 1080 },
+        "requireNativeReceipt": { "type": "boolean" },
+        "requireVisualScreening": { "type": "boolean" }
+      }
+    },
     "referenceBible": { "$ref": "#/$defs/referenceBibleManifest" },
     "narration": {
       "type": "object",
@@ -441,6 +452,17 @@
         "tool": { "const": "codex-desktop.image_gen" },
         "packetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "attemptId": { "type": "string", "minLength": 1 },
+        "nativeReceiptId": { "type": "string", "minLength": 1 },
+        "nativeImage": {
+          "type": "object",
+          "required": ["path", "sha256", "width", "height"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        },
         "receiptStatus": { "enum": ["persisted", "reconciled"] },
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 }
@@ -453,7 +475,18 @@
         "status": { "enum": ["pending", "pass", "fail", "unknown"] },
         "reviewedImageSha256": { "type": ["string", "null"] },
         "notes": { "type": "string" },
-        "pixelsDecoded": { "type": "boolean" }
+        "pixelsDecoded": { "type": "boolean" },
+        "screening": {
+          "type": "object",
+          "required": ["imageSha256", "collage", "text", "checkedBy", "notes"],
+          "properties": {
+            "imageSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "collage": { "enum": ["clear", "suspected", "unknown"] },
+            "text": { "enum": ["clear", "detected", "unknown"] },
+            "checkedBy": { "type": "string", "minLength": 1 },
+            "notes": { "type": "string", "minLength": 1 }
+          }
+        }
       },
       "allOf": [
         {
