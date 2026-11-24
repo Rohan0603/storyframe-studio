@@ -60,6 +60,11 @@ export interface ShotPromptPacket {
   activeSeriesStates?: Record<string, string>;
   imagePrompt?: string;
   seriesSnapshotSha256?: string;
+  seriesBinding?: {
+    seriesId: string;
+    revisionId: string;
+    bibleSha256: string;
+  };
   /** Only references bound to the current state; never silently fall back. */
   activeStateVisualCanon?: Array<{
     entityId: string;
@@ -240,7 +245,12 @@ export interface ImageOutputMetadata {
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
   nativeReceiptId?: string;
-  providerEvidence?: { path: string; sha256: string };
+  providerEvidence?: {
+    path: string;
+    sha256: string;
+    source: 'codex-desktop.image_gen';
+    responseSha256: string;
+  };
 }
 
 function stableJson(value: unknown): string {
@@ -403,6 +413,15 @@ export function createShotPromptPacket(
       : {}),
     storyRevisionId: revision.id,
     scriptRevisionSha256: revision.textSha256,
+    ...(episode.series
+      ? {
+          seriesBinding: {
+            seriesId: episode.series.seriesId,
+            revisionId: episode.series.revisionId,
+            bibleSha256: episode.series.bibleSha256,
+          },
+        }
+      : {}),
   };
   return {
     ...packetWithoutHash,

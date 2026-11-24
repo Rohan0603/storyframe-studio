@@ -21,6 +21,8 @@ export interface EvolutionState {
   referenceSha256: string;
   visualCanon: string;
   changeReason: string;
+  /** Explicit state transition; the first canonical state has no predecessor. */
+  supersedesStateId?: string;
 }
 
 export interface EvolutionEntity {
@@ -90,6 +92,14 @@ export function validateEvolutionShape(value: SeriesEvolution): string[] {
         errors.push('invalid series visual state for ' + entity.entityId);
         continue;
       }
+      if (states.size > 0 && !isStableId(state.supersedesStateId))
+        errors.push(
+          'non-initial visual state must identify the state it supersedes',
+        );
+      if (state.supersedesStateId && !states.has(state.supersedesStateId))
+        errors.push(
+          'visual state supersession must reference an earlier state',
+        );
       // The pair forms a sortable absolute position, and an episode cannot exceed 100000 shots.
       const position = state.fromEpisode * 100001 + state.fromShot;
       if (position <= previousPosition)
@@ -266,6 +276,37 @@ export async function loadEpisodeEvolution(
         'utf8',
       ),
     ) as Episode;
+    if (
+      manifest.schemaVersion !== 1 ||
+      !manifest.script ||
+      !manifest.referenceBundle
+    )
+      throw new Error(
+        'series predecessor manifest is missing canonical inputs',
+      );
+    for (const [label, file] of [
+      ['script', manifest.script],
+      ['reference bundle', manifest.referenceBundle],
+    ] as const) {
+      const bytes = await readFile(await resolveContained(root, file.path));
+      if (createHash('sha256').update(bytes).digest('hex') !== file.sha256)
+        throw new Error(`series predecessor ${label} hash mismatch`);
+    }
+    if (!Array.isArray(manifest.shots) || manifest.shots.length === 0)
+      throw new Error('series predecessor has no canonical shots');
+    for (const shot of manifest.shots) {
+      if (shot.image.status !== 'approved')
+        throw new Error(`series predecessor shot ${shot.id} is not approved`);
+      const bytes = await readFile(
+        await resolveContained(root, shot.image.path),
+      );
+      if (
+        createHash('sha256').update(bytes).digest('hex') !== shot.image.sha256
+      )
+        throw new Error(
+          `series predecessor shot ${shot.id} image hash mismatch`,
+        );
+    }
     if (
       validateEvolutionShape(previous).length ||
       previous.seriesId !== series.seriesId ||

@@ -48,6 +48,9 @@ export async function validateImageEvidence(
       );
       if (
         sha(raw) !== p.providerEvidence.sha256 ||
+        p.providerEvidence.source !== 'codex-desktop.image_gen' ||
+        sha(raw) !== p.providerEvidence.responseSha256 ||
+        !raw.toString('utf8').includes('"source":"codex-desktop.image_gen"') ||
         !raw.toString('utf8').includes(p.nativeReceiptId)
       )
         throw new Error('native response does not contain the receipt ID');
@@ -160,6 +163,40 @@ export async function validateImageEvidence(
     } catch (error) {
       errors.push(
         `image ${shot.id} screening evidence: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  if (shot.semanticReview.status === 'pass') {
+    try {
+      const evidence = shot.semanticReview.pixelEvidence;
+      if (!evidence)
+        throw new Error('persisted pixel inspection evidence required');
+      const inspection = await boundJson<{
+        imageSha256: string;
+        pixelsDecoded: boolean;
+        requiredActionPresent: boolean;
+        requiredCharactersPresent: boolean;
+        requiredPropsPresent: boolean;
+        continuityMatches: boolean;
+        forbiddenTextPresent: boolean;
+        staleReferences: boolean;
+        notes: string;
+      }>(root, evidence.path, evidence.sha256);
+      if (
+        inspection.imageSha256 !== shot.image.sha256 ||
+        inspection.pixelsDecoded !== true ||
+        !inspection.requiredActionPresent ||
+        !inspection.requiredCharactersPresent ||
+        !inspection.requiredPropsPresent ||
+        !inspection.continuityMatches ||
+        inspection.forbiddenTextPresent ||
+        inspection.staleReferences ||
+        !inspection.notes.trim()
+      )
+        throw new Error('pixel inspection does not approve the exact image');
+    } catch (error) {
+      errors.push(
+        `image ${shot.id} pixel evidence: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

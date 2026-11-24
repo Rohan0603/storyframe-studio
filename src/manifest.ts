@@ -533,7 +533,12 @@ export async function validateEpisode(
         !screening ||
         screening.imageSha256 !== shot.image.sha256 ||
         screening.collage !== 'clear' ||
-        screening.text !== 'clear' ||
+        !(
+          screening.text === 'clear' ||
+          (screening.text === 'detected' &&
+            Array.isArray(screening.allowedText) &&
+            screening.allowedText.length > 0)
+        ) ||
         !screening.checkedBy?.trim() ||
         !screening.notes?.trim()
       )

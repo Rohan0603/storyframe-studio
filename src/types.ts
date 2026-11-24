@@ -198,6 +198,7 @@ export interface Shot {
     notes: string;
     pixelsDecoded?: boolean;
     reviewedPacketSha256?: string;
+    pixelEvidence?: { path: string; sha256: string };
     screening?: {
       imageSha256: string;
       collage: 'clear' | 'suspected' | 'unknown';
@@ -277,7 +278,12 @@ export interface ImageProvenance {
   nativeReceiptId?: string;
   journalPath?: string;
   journalEntrySha256?: string;
-  providerEvidence?: { path: string; sha256: string };
+  providerEvidence?: {
+    path: string;
+    sha256: string;
+    source: 'codex-desktop.image_gen';
+    responseSha256: string;
+  };
   normalizationReceipt?: { path: string; sha256: string };
   /** Original native output preserved separately when normalized. */
   nativeImage?: { path: string; sha256: string; width: number; height: number };

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -150,6 +150,7 @@ async function fixture(): Promise<{
             referenceSha256: normalized.output.sha256,
             visualCanon: 'New tailored clothes',
             changeReason: 'Changes clothes',
+            supersedesStateId: 'ragged',
           },
         ],
       },
@@ -214,6 +215,15 @@ async function fixture(): Promise<{
       },
     };
   });
+  await copyFile(
+    join(root, 'references/ragged.png'),
+    join(root, 'images/shot-1.png'),
+  );
+  await copyFile(
+    join(root, 'references/ragged.png'),
+    join(root, 'images/shot-2.png'),
+  );
+  for (const shot of shots) shot.image.sha256 = sha(png);
   const episode: Episode = {
     schemaVersion: 1,
     episodeId: 'episode-01',
@@ -308,6 +318,7 @@ describe('strict production integration', () => {
     const { root, episode, evolution } = await fixture();
     const previous = JSON.stringify(evolution);
     episode.release.productionQAPassed = true;
+    for (const shot of episode.shots) shot.image.status = 'approved';
     const archived = JSON.stringify(episode);
     await writeFile(join(root, 'series-bible/previous.json'), previous);
     await writeFile(
@@ -351,8 +362,9 @@ describe('strict production integration', () => {
     const hd = await normalizeGeneratedStill(
       root,
       'references/ragged.png',
-      shot.image.path,
+      'images/reviewed.png',
     );
+    shot.image.path = hd.output.path;
     shot.image.sha256 = hd.output.sha256;
     shot.image.status = 'approved';
     shot.image.provenance = {
@@ -382,7 +394,7 @@ describe('strict production integration', () => {
     expect(errors).toMatch(/stale for current prompt/);
     expect(errors).toMatch(/native receipt evidence/);
     expect(errors).toMatch(/persisted scan receipt/);
-    expect((await validateImageEvidence(root, episode, shot)).length).toBe(2);
+    expect((await validateImageEvidence(root, episode, shot)).length).toBe(3);
   });
 
   it('binds read-only publication verification to the intended episode and video hash', async () => {
