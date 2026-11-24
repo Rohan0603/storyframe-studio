@@ -29,6 +29,13 @@ export interface Episode {
   script: { path: string; sha256: string; approved: boolean };
   referenceBundle: { path: string; sha256: string };
   series?: SeriesConfiguration;
+  /** Strict production gates opt-in; old episodes stay readable. */
+  imagePolicy?: {
+    width: 1920;
+    height: 1080;
+    requireNativeReceipt: boolean;
+    requireVisualScreening: boolean;
+  };
   referenceBible?: ReferenceBibleManifest;
   narration: {
     provider: NarrationProvider;
@@ -170,6 +177,13 @@ export interface Shot {
     reviewedImageSha256: string | null;
     notes: string;
     pixelsDecoded?: boolean;
+    screening?: {
+      imageSha256: string;
+      collage: 'clear' | 'suspected' | 'unknown';
+      text: 'clear' | 'detected' | 'unknown';
+      checkedBy: string;
+      notes: string;
+    };
   };
   referenceBinding?: {
     freezeSha256: string;
@@ -237,6 +251,8 @@ export interface ImageProvenance {
   attemptId: string;
   /** ID actually returned by the native generator. Never infer from shot or attempt IDs. */
   nativeReceiptId?: string;
+  /** Original native output preserved separately when normalized. */
+  nativeImage?: { path: string; sha256: string; width: number; height: number };
   receiptStatus: 'persisted' | 'reconciled';
   width: number;
   height: number;
