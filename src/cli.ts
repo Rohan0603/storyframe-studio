@@ -18,7 +18,7 @@ import { validateAndWriteTimelineReview } from './sync.js';
 import { normalizeGeneratedStill } from './image-normalization.js';
 import { persistStillScreening } from './visual-screening.js';
 import { createValidatedShotPromptPacket } from './image-generation.js';
-import { fetchAndVerifyYouTubeState } from './youtube-state.js';
+import { verifyEpisodeYouTubeState } from './youtube-state.js';
 import {
   approveProducerStage,
   assessProducer,
@@ -82,18 +82,11 @@ export async function runCli(args: string[]): Promise<number> {
     const state = args[3];
     if (!videoId || (state !== 'public' && state !== 'scheduled'))
       throw new Error('verify-youtube requires video ID and public|scheduled');
-    console.log(
-      JSON.stringify(
-        await fetchAndVerifyYouTubeState(
-          root,
-          videoId,
-          { state, ...(args[4] ? { publishAt: args[4] } : {}) },
-          process.env.YOUTUBE_ACCESS_TOKEN ?? '',
-        ),
-        null,
-        2,
-      ),
-    );
+    const episode = await load(root);
+    const result = await verifyEpisodeYouTubeState(root, episode, videoId,
+      { state, ...(args[4] ? { publishAt: args[4] } : {}) }, process.env.YOUTUBE_ACCESS_TOKEN ?? '');
+    await saveProducerEpisode(root, episode);
+    console.log(JSON.stringify(result, null, 2));
     return 0;
   }
   if (command === 'normalize-still') {

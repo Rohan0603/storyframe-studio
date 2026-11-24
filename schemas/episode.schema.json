@@ -153,7 +153,59 @@
         "productionQAPassed",
         "creativeApproval",
         "publishAuthorization"
-      ]
+      ],
+      "properties": {
+        "youtubeTarget": {
+          "type": "object",
+          "required": [
+            "videoId",
+            "state",
+            "videoPath",
+            "videoSha256"
+          ],
+          "properties": {
+            "videoId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{11}$"
+            },
+            "state": {
+              "enum": [
+                "scheduled",
+                "public"
+              ]
+            },
+            "publishAt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "videoPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "videoSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "youtubeVerification": {
+          "type": "object",
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {

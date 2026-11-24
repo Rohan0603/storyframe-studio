@@ -139,19 +139,26 @@ export async function renderStillEpisode(
         : [];
     const filterParts: string[] = [];
     for (const [index, shot] of episode.shots.entries()) {
-      const seconds = ((shot.audioEndMs - shot.audioStartMs) / 1000).toFixed(3);
+      const firstFrame = Math.round(shot.audioStartMs * 30 / 1000);
+      const lastFrame = index === episode.shots.length - 1
+        ? Math.ceil(shot.audioEndMs * 30 / 1000)
+        : Math.round(shot.audioEndMs * 30 / 1000);
+      const frames = lastFrame - firstFrame;
+      if (frames < 1) throw new Error('shot is shorter than one output frame: ' + shot.id);
       filterParts.push(
-        `[${index}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p,trim=duration=${seconds},setpts=PTS-STARTPTS[v${index}]`,
+        `[${index}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p,trim=end_frame=${frames},setpts=PTS-STARTPTS[v${index}]`,
       );
     }
     filterParts.push(
-      `${episode.shots.map((_, index) => `[v${index}]`).join('')}concat=n=${episode.shots.length}:v=1:a=0,format=yuv420p[v]`,
+      `${episode.shots.map((_, index) => `[v${index}]`).join('')}concat=n=${episode.shots.length}:v=1:a=0,setpts=N/(30*TB),format=yuv420p[v]`,
     );
     const ffmpegArgs = ['-hide_banner', '-loglevel', 'error'];
     for (const shot of episode.shots) {
       ffmpegArgs.push(
         '-loop',
         '1',
+        '-framerate',
+        '30',
         '-i',
         await resolveContained(root, shot.image.path),
       );

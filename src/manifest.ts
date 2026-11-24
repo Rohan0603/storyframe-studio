@@ -14,6 +14,7 @@ import { canonHash, validateReferenceBible } from './reference-bible.js';
 import { createShotPromptPacket, readPersistedImage } from './image-generation.js';
 import { validateSyncTimeline } from './sync.js';
 import { validateImageEvidence } from './production-evidence.js';
+import { validatePublicationReceipt } from './youtube-state.js';
 import {
   loadEpisodeEvolution,
   validateResolvedShotEvolution,
@@ -677,5 +678,6 @@ export async function validateEpisode(
       );
     }
   }
+  errors.push(...await validatePublicationReceipt(root, episode));
   return { valid: errors.length === 0, errors };
 }

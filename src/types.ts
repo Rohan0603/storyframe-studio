@@ -68,6 +68,8 @@ export interface Episode {
     productionQAPassed: boolean;
     creativeApproval: string | null;
     publishAuthorization: string | null;
+    youtubeTarget?: { videoId: string; state: 'scheduled' | 'public'; publishAt?: string; videoPath: string; videoSha256: string };
+    youtubeVerification?: { path: string; sha256: string };
   };
 }
 
