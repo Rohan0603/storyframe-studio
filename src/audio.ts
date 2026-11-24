@@ -30,6 +30,10 @@ export interface AudioAlignment {
   durationMs: number;
   source: AlignmentSource;
   verified: boolean;
+  /** Word timing is only asserted when every transcript token is matched. */
+  granularity?: 'word' | 'phrase';
+  evidenceNotes?: string;
+  phrases?: Array<{ text: string; startMs: number; endMs: number }>;
   words: WordTiming[];
 }
 
@@ -440,6 +444,8 @@ export async function synthesizeKokoroTts(
       durationMs,
       source: 'provider',
       verified: true,
+      granularity: 'word',
+      evidenceNotes: 'Each transcript token matched one Kokoro phoneme group; no interpolation.',
       words: groupKokoroTimings(options.transcript, run.timings),
     };
     validateKokoroAlignment(alignment);
@@ -656,6 +662,8 @@ export function retimeShotsFromAlignment(
     throw new Error(
       'verified word alignment is required before retiming shots',
     );
+  if (alignment.granularity === 'phrase')
+    throw new Error('phrase alignment cannot be used for word-level shot retiming');
   validateWordTimings(alignment);
   const byId = new Map(beats.map((beat) => [beat.id, beat]));
   let previousEnd = 0;
@@ -707,6 +715,8 @@ const srtTime = (milliseconds: number): string => {
 };
 
 export function createSrt(alignment: AudioAlignment, maxWords = 8): string {
+  if (alignment.granularity === 'phrase')
+    throw new Error('phrase-aligned audio must use verified syncTimeline subtitle cues');
   if (!alignment.verified || alignment.source === 'estimated')
     throw new Error(
       'verified word alignment is required before creating captions',
