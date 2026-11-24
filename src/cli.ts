@@ -17,6 +17,7 @@ import { renderStillEpisode } from './render.js';
 import { validateAndWriteTimelineReview } from './sync.js';
 import { normalizeGeneratedStill } from './image-normalization.js';
 import { screenGeneratedStill } from './visual-screening.js';
+import { fetchAndVerifyYouTubeState } from './youtube-state.js';
 import {
   approveProducerStage,
   assessProducer,
@@ -72,8 +73,19 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|normalize-still|screen-still|render> <episode-root> [episode-id] [provider]',
+      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|normalize-still|screen-still|verify-youtube|render> <episode-root> [episode-id] [provider]',
     );
+  if (command === 'verify-youtube') {
+    const videoId = args[2];
+    const state = args[3];
+    if (!videoId || (state !== 'public' && state !== 'scheduled'))
+      throw new Error('verify-youtube requires video ID and public|scheduled');
+    console.log(JSON.stringify(await fetchAndVerifyYouTubeState(
+      root, videoId, { state, ...(args[4] ? { publishAt: args[4] } : {}) },
+      process.env.YOUTUBE_ACCESS_TOKEN ?? '',
+    ), null, 2));
+    return 0;
+  }
   if (command === 'normalize-still') {
     if (!args[2] || !args[3]) throw new Error('normalize-still requires native and output relative paths');
     console.log(JSON.stringify(await normalizeGeneratedStill(root, args[2], args[3]), null, 2));
