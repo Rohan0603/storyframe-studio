@@ -52,6 +52,12 @@ export interface ShotPromptPacket {
   referenceBinding: NonNullable<Shot['referenceBinding']>;
   /** Explicit current appearance/prop variant IDs included in the prompt hash. */
   activeSeriesStates?: Record<string, string>;
+  /** Only references bound to the current state; never silently fall back. */
+  activeStateVisualCanon?: Array<{
+    entityId: string;
+    stateId: string;
+    references: Array<{ id: string; sha256: string; visualCanon: string }>;
+  }>;
   storyRevisionId: string;
   scriptRevisionSha256: string;
   packetSha256: string;
@@ -330,6 +336,17 @@ export function createShotPromptPacket(
         `shot ${shot.id} reference binding does not match loaded reference bible`,
       );
   }
+  const activeStateVisualCanon = Object.entries(shot.seriesBinding?.entityStates ?? {})
+    .map(([entityId, stateId]) => ({
+      entityId,
+      stateId,
+      references: validatedReferences.bible.entries
+        .filter((entry) => entry.canonEntityId === entityId &&
+          shot.referenceBinding!.referenceIds.includes(entry.id))
+        .map((entry) => ({
+          id: entry.id, sha256: entry.image.sha256, visualCanon: entry.visualCanon,
+        })),
+    }));
   const packetWithoutHash = {
     shotId: shot.id,
     beatIds: shot.beatIds,
@@ -342,7 +359,7 @@ export function createShotPromptPacket(
     forbidden: shot.forbidden,
     referenceBinding: shot.referenceBinding,
     ...(shot.seriesBinding?.entityStates
-      ? { activeSeriesStates: shot.seriesBinding.entityStates }
+      ? { activeSeriesStates: shot.seriesBinding.entityStates, activeStateVisualCanon }
       : {}),
     storyRevisionId: revision.id,
     scriptRevisionSha256: revision.textSha256,
