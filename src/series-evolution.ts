@@ -359,6 +359,16 @@ export async function loadEpisodeEvolution(
           );
       }
       if (manifest.series?.evolution) {
+        if (
+          !manifest.referenceBible ||
+          shot.referenceBinding!.freezeSha256 !==
+            manifest.referenceBible.freezeSha256 ||
+          shot.referenceBinding!.storyRevisionId !==
+            manifest.story?.scriptRevision.id
+        )
+          throw new Error(
+            `series predecessor shot ${shot.id} has stale reference ownership metadata`,
+          );
         const stateErrors = validateShotEvolution(
           previous,
           previous.throughEpisode!,
