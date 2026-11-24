@@ -590,7 +590,17 @@
         "biblePath": { "type": "string", "minLength": 1 },
         "bibleSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "visualFormat": { "enum": ["2d-still", "3d-still"] },
-        "applied": { "type": "boolean" }
+        "applied": { "type": "boolean" },
+        "evolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256", "episodeOrder"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "episodeOrder": { "type": "integer", "minimum": 1 }
+          }
+        }
       }
     },
     "seriesBinding": {
@@ -598,7 +608,14 @@
       "required": ["seriesId", "revisionId"],
       "properties": {
         "seriesId": { "type": "string", "minLength": 1 },
-        "revisionId": { "type": "string", "minLength": 1 }
+        "revisionId": { "type": "string", "minLength": 1 },
+        "entityStates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          }
+        }
       }
     },
     "syncSubtitle": {
