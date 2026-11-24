@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { lstat, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { resolveContained } from './paths.js';
 import { readPersistedImage } from './image-generation.js';
@@ -39,6 +39,12 @@ export async function normalizeGeneratedStill(
   const native = await readPersistedImage(root, nativePath);
   const input = await resolveContained(root, nativePath);
   const output = await resolveContained(root, normalizedPath);
+  try {
+    await lstat(output);
+    throw new Error('normalization output already exists; refusing overwrite');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   await mkdir(dirname(output), { recursive: true });
   await execute(ffmpegPath, [
     '-hide_banner', '-loglevel', 'error', '-n',
