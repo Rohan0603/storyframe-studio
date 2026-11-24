@@ -13,7 +13,10 @@ import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
 import { readPersistedImage } from './image-generation.js';
 import { validateSyncTimeline } from './sync.js';
-import { loadSeriesEvolution, validateShotEvolution } from './series-evolution.js';
+import {
+  loadSeriesEvolution,
+  validateShotEvolution,
+} from './series-evolution.js';
 import type { SeriesEvolution } from './series-evolution.js';
 
 const HASH = /^[a-f0-9]{64}$/;
@@ -120,11 +123,14 @@ export async function validateEpisode(
         'applied series configuration requires story canon and a frozen reference bible',
       );
   }
-  if (episode.imagePolicy && (
-    episode.imagePolicy.width !== 1920 || episode.imagePolicy.height !== 1080 ||
-    typeof episode.imagePolicy.requireNativeReceipt !== 'boolean' ||
-    typeof episode.imagePolicy.requireVisualScreening !== 'boolean'
-  )) errors.push('imagePolicy must define 1920x1080 and both QA switches');
+  if (
+    episode.imagePolicy &&
+    (episode.imagePolicy.width !== 1920 ||
+      episode.imagePolicy.height !== 1080 ||
+      typeof episode.imagePolicy.requireNativeReceipt !== 'boolean' ||
+      typeof episode.imagePolicy.requireVisualScreening !== 'boolean')
+  )
+    errors.push('imagePolicy must define 1920x1080 and both QA switches');
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
     errors.push('narration.textSha256 must be a SHA-256');
   if (
@@ -346,7 +352,10 @@ export async function validateEpisode(
           errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
-  for (const [shotIndex, shot] of (Array.isArray(episode?.shots) ? episode.shots : []).entries()) {
+  for (const [shotIndex, shot] of (Array.isArray(episode?.shots)
+    ? episode.shots
+    : []
+  ).entries()) {
     if (!shot || typeof shot !== 'object') {
       errors.push('shot must be an object');
       continue;
@@ -419,13 +428,29 @@ export async function validateEpisode(
           errors.push(
             `image ${shot.id} has invalid provenance receipt or dimensions`,
           );
-        if (episode.imagePolicy?.requireNativeReceipt && !provenance.nativeReceiptId?.trim())
-          errors.push(`image ${shot.id} lacks a genuine native provider receipt ID`);
+        if (
+          episode.imagePolicy?.requireNativeReceipt &&
+          !provenance.nativeReceiptId?.trim()
+        )
+          errors.push(
+            `image ${shot.id} lacks a genuine native provider receipt ID`,
+          );
         if (provenance.nativeImage) {
           const native = provenance.nativeImage;
-          if (!HASH.test(native.sha256) || native.width < 1 || native.height < 1)
+          if (
+            !HASH.test(native.sha256) ||
+            native.width < 1 ||
+            native.height < 1
+          )
             errors.push(`image ${shot.id} has invalid native image provenance`);
-          else await verifyFile(root, native.path, native.sha256, `native image ${shot.id}`, errors);
+          else
+            await verifyFile(
+              root,
+              native.path,
+              native.sha256,
+              `native image ${shot.id}`,
+              errors,
+            );
         }
       }
     }
@@ -462,9 +487,11 @@ export async function validateEpisode(
         const inspected = await readPersistedImage(root, shot.image.path);
         if (inspected.sha256 !== shot.image.sha256)
           errors.push(`image ${shot.id} decode hash mismatch`);
-        if (episode.imagePolicy &&
+        if (
+          episode.imagePolicy &&
           (inspected.width !== episode.imagePolicy.width ||
-            inspected.height !== episode.imagePolicy.height))
+            inspected.height !== episode.imagePolicy.height)
+        )
           errors.push(`image ${shot.id} must be normalized to 1920x1080`);
         if (!shot.image.provenance)
           errors.push(`image ${shot.id} is missing generation provenance`);
@@ -479,13 +506,22 @@ export async function validateEpisode(
         );
       }
     }
-    if (episode.imagePolicy?.requireVisualScreening &&
-      shot.image.sha256 !== null) {
+    if (
+      episode.imagePolicy?.requireVisualScreening &&
+      shot.image.sha256 !== null
+    ) {
       const screening = shot.semanticReview.screening;
-      if (!screening || screening.imageSha256 !== shot.image.sha256 ||
-          screening.collage !== 'clear' || screening.text !== 'clear' ||
-          !screening.checkedBy?.trim() || !screening.notes?.trim())
-        errors.push(`image ${shot.id} has unresolved collage or visual-text screening`);
+      if (
+        !screening ||
+        screening.imageSha256 !== shot.image.sha256 ||
+        screening.collage !== 'clear' ||
+        screening.text !== 'clear' ||
+        !screening.checkedBy?.trim() ||
+        !screening.notes?.trim()
+      )
+        errors.push(
+          `image ${shot.id} has unresolved collage or visual-text screening`,
+        );
     }
     if (
       shot.semanticReview.status === 'pass' &&
@@ -556,7 +592,9 @@ export async function validateEpisode(
           ...shot.props,
           shot.environment,
         ]) {
-          const tracked = seriesEvolution?.entities.some((entity) => entity.entityId === required);
+          const tracked = seriesEvolution?.entities.some(
+            (entity) => entity.entityId === required,
+          );
           if (!tracked && !binding.referenceIds.includes(required))
             errors.push(
               `shot ${shot.id} is missing required visual reference ${required}`,
@@ -567,12 +605,14 @@ export async function validateEpisode(
       errors.push(`shot ${shot.id} is missing a frozen reference binding`);
     }
     if (seriesEvolution && episode.series?.evolution) {
-      errors.push(...validateShotEvolution(
-        seriesEvolution,
-        episode.series.evolution.episodeOrder,
-        shot,
-        shotIndex,
-      ));
+      errors.push(
+        ...validateShotEvolution(
+          seriesEvolution,
+          episode.series.evolution.episodeOrder,
+          shot,
+          shotIndex,
+        ),
+      );
     }
     if (episode.series?.applied) {
       if (!shot.seriesBinding)

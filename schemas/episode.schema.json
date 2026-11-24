@@ -27,7 +27,12 @@
     "imagePolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["width", "height", "requireNativeReceipt", "requireVisualScreening"],
+      "required": [
+        "width",
+        "height",
+        "requireNativeReceipt",
+        "requireVisualScreening"
+      ],
       "properties": {
         "width": { "const": 1920 },
         "height": { "const": 1080 },

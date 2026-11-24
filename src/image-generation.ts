@@ -336,17 +336,23 @@ export function createShotPromptPacket(
         `shot ${shot.id} reference binding does not match loaded reference bible`,
       );
   }
-  const activeStateVisualCanon = Object.entries(shot.seriesBinding?.entityStates ?? {})
-    .map(([entityId, stateId]) => ({
-      entityId,
-      stateId,
-      references: validatedReferences.bible.entries
-        .filter((entry) => entry.canonEntityId === entityId &&
-          shot.referenceBinding!.referenceIds.includes(entry.id))
-        .map((entry) => ({
-          id: entry.id, sha256: entry.image.sha256, visualCanon: entry.visualCanon,
-        })),
-    }));
+  const activeStateVisualCanon = Object.entries(
+    shot.seriesBinding?.entityStates ?? {},
+  ).map(([entityId, stateId]) => ({
+    entityId,
+    stateId,
+    references: validatedReferences.bible.entries
+      .filter(
+        (entry) =>
+          entry.canonEntityId === entityId &&
+          shot.referenceBinding!.referenceIds.includes(entry.id),
+      )
+      .map((entry) => ({
+        id: entry.id,
+        sha256: entry.image.sha256,
+        visualCanon: entry.visualCanon,
+      })),
+  }));
   const packetWithoutHash = {
     shotId: shot.id,
     beatIds: shot.beatIds,
@@ -359,7 +365,10 @@ export function createShotPromptPacket(
     forbidden: shot.forbidden,
     referenceBinding: shot.referenceBinding,
     ...(shot.seriesBinding?.entityStates
-      ? { activeSeriesStates: shot.seriesBinding.entityStates, activeStateVisualCanon }
+      ? {
+          activeSeriesStates: shot.seriesBinding.entityStates,
+          activeStateVisualCanon,
+        }
       : {}),
     storyRevisionId: revision.id,
     scriptRevisionSha256: revision.textSha256,
@@ -623,7 +632,8 @@ export function inspectPixels(inspection: PixelInspection): PixelReviewResult {
   if (inspection.forbiddenTextPresent)
     reasons.push('unwanted text is present in pixels');
   if (inspection.staleReferences) reasons.push('references are stale');
-  if (inspection.collageSuspected) reasons.push('suspected multi-panel or contact sheet image');
+  if (inspection.collageSuspected)
+    reasons.push('suspected multi-panel or contact sheet image');
   if (inspection.unwantedLogoPresent) reasons.push('unwanted logo is visible');
   if (!inspection.notes.trim())
     reasons.push('independent pixel review notes are missing');

@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { normalizeGeneratedStill } from '../src/image-normalization.js';
-import { detectPanelGutters, screenGeneratedStill } from '../src/visual-screening.js';
+import {
+  detectPanelGutters,
+  screenGeneratedStill,
+} from '../src/visual-screening.js';
 import { verifyPublicationStatus } from '../src/youtube-state.js';
 
 const png = Buffer.from(
@@ -17,15 +20,19 @@ describe('image production hardening', () => {
     await mkdir(join(root, 'native'));
     await writeFile(join(root, 'native/source.png'), png);
     const evidence = await normalizeGeneratedStill(
-      root, 'native/source.png', 'images/shot-hd.png',
+      root,
+      'native/source.png',
+      'images/shot-hd.png',
     );
     expect(evidence.native.width).toBe(1);
     expect(evidence.output.width).toBe(1920);
     expect(evidence.output.height).toBe(1080);
-    expect((await readFile(join(root, 'native/source.png'))).equals(png)).toBe(true);
-    await expect(normalizeGeneratedStill(
-      root, 'native/source.png', 'images/shot-hd.png',
-    )).rejects.toThrow(/failed|overwrite|exists/i);
+    expect((await readFile(join(root, 'native/source.png'))).equals(png)).toBe(
+      true,
+    );
+    await expect(
+      normalizeGeneratedStill(root, 'native/source.png', 'images/shot-hd.png'),
+    ).rejects.toThrow(/failed|overwrite|exists/i);
   });
 
   it('flags an obvious multi-panel gutter and keeps ordinary gradients clear', () => {
@@ -34,7 +41,13 @@ describe('image production hardening', () => {
     const gray = new Uint8Array(width * height).fill(65);
     for (let y = 0; y < height; y += 1) gray[y * width + 50] = 255;
     expect(detectPanelGutters(gray, width, height)).toBe(true);
-    expect(detectPanelGutters(new Uint8Array(width * height).fill(75), width, height)).toBe(false);
+    expect(
+      detectPanelGutters(
+        new Uint8Array(width * height).fill(75),
+        width,
+        height,
+      ),
+    ).toBe(false);
   });
 
   it('returns unknown rather than inventing OCR success when tool is unavailable', async () => {
@@ -56,7 +69,11 @@ describe('YouTube state evidence', () => {
   it('accepts an owner-visible private video scheduled for the exact time', () => {
     const result = verifyPublicationStatus(
       videoId,
-      { privacyStatus: 'private', publishAt: future, uploadStatus: 'processed' },
+      {
+        privacyStatus: 'private',
+        publishAt: future,
+        uploadStatus: 'processed',
+      },
       { state: 'scheduled', publishAt: future },
       at,
     );
@@ -64,18 +81,40 @@ describe('YouTube state evidence', () => {
   });
 
   it('rejects a pending form, wrong schedule or non-public video', () => {
-    expect(() => verifyPublicationStatus(videoId, { privacyStatus: 'private' },
-      { state: 'scheduled', publishAt: future }, at)).toThrow(/not scheduled/);
-    expect(() => verifyPublicationStatus(videoId, { privacyStatus: 'private' },
-      { state: 'public' }, at)).toThrow(/not public/);
-    expect(() => verifyPublicationStatus(videoId, { privacyStatus: 'private',
-      publishAt: '2030-02-03T04:06:00Z' },
-      { state: 'scheduled', publishAt: future }, at)).toThrow(/not scheduled/);
+    expect(() =>
+      verifyPublicationStatus(
+        videoId,
+        { privacyStatus: 'private' },
+        { state: 'scheduled', publishAt: future },
+        at,
+      ),
+    ).toThrow(/not scheduled/);
+    expect(() =>
+      verifyPublicationStatus(
+        videoId,
+        { privacyStatus: 'private' },
+        { state: 'public' },
+        at,
+      ),
+    ).toThrow(/not public/);
+    expect(() =>
+      verifyPublicationStatus(
+        videoId,
+        { privacyStatus: 'private', publishAt: '2030-02-03T04:06:00Z' },
+        { state: 'scheduled', publishAt: future },
+        at,
+      ),
+    ).toThrow(/not scheduled/);
   });
 
   it('accepts a genuinely public API status', () => {
-    expect(verifyPublicationStatus(videoId,
-      { privacyStatus: 'public', uploadStatus: 'processed' },
-      { state: 'public' }, at).state).toBe('public');
+    expect(
+      verifyPublicationStatus(
+        videoId,
+        { privacyStatus: 'public', uploadStatus: 'processed' },
+        { state: 'public' },
+        at,
+      ).state,
+    ).toBe('public');
   });
 });

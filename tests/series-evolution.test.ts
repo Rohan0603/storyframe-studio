@@ -22,25 +22,51 @@ const evolution: SeriesEvolution = {
   seriesId: 'series-journey',
   entities: [
     {
-      entityId: 'hero', kind: 'character',
+      entityId: 'hero',
+      kind: 'character',
       states: [
-        { id: 'ragged', fromEpisode: 1, fromShot: 0,
-          referenceId: 'hero-ragged', referenceSha256: ragged,
-          visualCanon: 'Threadbare coat and torn shoes', changeReason: 'Story opening' },
-        { id: 'wealthy', fromEpisode: 3, fromShot: 2,
-          referenceId: 'hero-wealthy', referenceSha256: wealthy,
-          visualCanon: 'New suit and polished shoes', changeReason: 'Found gold' },
+        {
+          id: 'ragged',
+          fromEpisode: 1,
+          fromShot: 0,
+          referenceId: 'hero-ragged',
+          referenceSha256: ragged,
+          visualCanon: 'Threadbare coat and torn shoes',
+          changeReason: 'Story opening',
+        },
+        {
+          id: 'wealthy',
+          fromEpisode: 3,
+          fromShot: 2,
+          referenceId: 'hero-wealthy',
+          referenceSha256: wealthy,
+          visualCanon: 'New suit and polished shoes',
+          changeReason: 'Found gold',
+        },
       ],
     },
     {
-      entityId: 'satchel', kind: 'prop',
+      entityId: 'satchel',
+      kind: 'prop',
       states: [
-        { id: 'empty', fromEpisode: 1, fromShot: 0,
-          referenceId: 'satchel-empty', referenceSha256: empty,
-          visualCanon: 'Empty worn leather bag', changeReason: 'Starts without gold' },
-        { id: 'gold-filled', fromEpisode: 3, fromShot: 1,
-          referenceId: 'satchel-gold', referenceSha256: gold,
-          visualCanon: 'Leather bag bulging with gold', changeReason: 'Finds treasure' },
+        {
+          id: 'empty',
+          fromEpisode: 1,
+          fromShot: 0,
+          referenceId: 'satchel-empty',
+          referenceSha256: empty,
+          visualCanon: 'Empty worn leather bag',
+          changeReason: 'Starts without gold',
+        },
+        {
+          id: 'gold-filled',
+          fromEpisode: 3,
+          fromShot: 1,
+          referenceId: 'satchel-gold',
+          referenceSha256: gold,
+          visualCanon: 'Leather bag bulging with gold',
+          changeReason: 'Finds treasure',
+        },
       ],
     },
   ],
@@ -53,17 +79,24 @@ function shot(
   return {
     id: 'shot-test',
     beatIds: ['beat-test'],
-    audioStartMs: 0, audioEndMs: 1000,
+    audioStartMs: 0,
+    audioEndMs: 1000,
     requiredVisualEvent: 'Hero holds a leather bag',
-    characters: ['hero'], props: ['satchel'], environment: 'forest',
-    composition: 'medium', forbidden: [],
+    characters: ['hero'],
+    props: ['satchel'],
+    environment: 'forest',
+    composition: 'medium',
+    forbidden: [],
     image: { path: 'images/shot-test.png', sha256: null, status: 'pending' },
     semanticReview: { status: 'pending', reviewedImageSha256: null, notes: '' },
     seriesBinding: {
-      seriesId: 'series-journey', revisionId: 'series-v1', entityStates: states,
+      seriesId: 'series-journey',
+      revisionId: 'series-v1',
+      entityStates: states,
     },
     referenceBinding: {
-      freezeSha256: 'e'.repeat(64), storyRevisionId: 'rev-one',
+      freezeSha256: 'e'.repeat(64),
+      storyRevisionId: 'rev-one',
       referenceIds: Object.keys(refs),
       referenceHashes: refs,
     },
@@ -99,13 +132,17 @@ describe('time-versioned series references', () => {
       { hero: 'ragged', satchel: 'gold-filled' },
       { 'hero-ragged': ragged, 'satchel-gold': gold },
     );
-    expect(validateShotEvolution(evolution, 3, old, 2).join(' ')).toMatch(/stale|premature/);
+    expect(validateShotEvolution(evolution, 3, old, 2).join(' ')).toMatch(
+      /stale|premature/,
+    );
 
     const future = shot(
       { hero: 'wealthy', satchel: 'empty' },
       { 'hero-wealthy': wealthy, 'satchel-empty': empty },
     );
-    expect(validateShotEvolution(evolution, 3, future, 0).join(' ')).toMatch(/stale|premature/);
+    expect(validateShotEvolution(evolution, 3, future, 0).join(' ')).toMatch(
+      /stale|premature/,
+    );
   });
 
   it('rejects binding both old and new visual references, even when state ID is correct', () => {
@@ -113,7 +150,9 @@ describe('time-versioned series references', () => {
       { hero: 'wealthy', satchel: 'gold-filled' },
       { 'hero-ragged': ragged, 'hero-wealthy': wealthy, 'satchel-gold': gold },
     );
-    expect(validateShotEvolution(evolution, 3, mixed, 3).join(' ')).toMatch(/retired/);
+    expect(validateShotEvolution(evolution, 3, mixed, 3).join(' ')).toMatch(
+      /retired/,
+    );
   });
 
   it('rejects a new state that reuses an old image or reference ID', () => {
@@ -128,9 +167,12 @@ describe('time-versioned series references', () => {
     const content = JSON.stringify(evolution) + '\n';
     await writeFile(join(root, 'series-bible/evolution.json'), content);
     const config = {
-      seriesId: 'series-journey', revisionId: 'series-v1',
-      biblePath: 'series-bible/series.json', bibleSha256: 'f'.repeat(64),
-      visualFormat: '2d-still' as const, applied: true,
+      seriesId: 'series-journey',
+      revisionId: 'series-v1',
+      biblePath: 'series-bible/series.json',
+      bibleSha256: 'f'.repeat(64),
+      visualFormat: '2d-still' as const,
+      applied: true,
       evolution: {
         path: 'series-bible/evolution.json',
         sha256: createHash('sha256').update(content).digest('hex'),
@@ -141,6 +183,8 @@ describe('time-versioned series references', () => {
     expect(loaded.errors).toEqual([]);
     expect(loaded.evolution?.entities).toHaveLength(2);
     await writeFile(join(root, 'series-bible/evolution.json'), content + ' ');
-    expect((await loadSeriesEvolution(root, config)).errors.join(' ')).toMatch(/hash mismatch/);
+    expect((await loadSeriesEvolution(root, config)).errors.join(' ')).toMatch(
+      /hash mismatch/,
+    );
   });
 });

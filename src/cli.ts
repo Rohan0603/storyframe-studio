@@ -80,20 +80,40 @@ export async function runCli(args: string[]): Promise<number> {
     const state = args[3];
     if (!videoId || (state !== 'public' && state !== 'scheduled'))
       throw new Error('verify-youtube requires video ID and public|scheduled');
-    console.log(JSON.stringify(await fetchAndVerifyYouTubeState(
-      root, videoId, { state, ...(args[4] ? { publishAt: args[4] } : {}) },
-      process.env.YOUTUBE_ACCESS_TOKEN ?? '',
-    ), null, 2));
+    console.log(
+      JSON.stringify(
+        await fetchAndVerifyYouTubeState(
+          root,
+          videoId,
+          { state, ...(args[4] ? { publishAt: args[4] } : {}) },
+          process.env.YOUTUBE_ACCESS_TOKEN ?? '',
+        ),
+        null,
+        2,
+      ),
+    );
     return 0;
   }
   if (command === 'normalize-still') {
-    if (!args[2] || !args[3]) throw new Error('normalize-still requires native and output relative paths');
-    console.log(JSON.stringify(await normalizeGeneratedStill(root, args[2], args[3]), null, 2));
+    if (!args[2] || !args[3])
+      throw new Error(
+        'normalize-still requires native and output relative paths',
+      );
+    console.log(
+      JSON.stringify(
+        await normalizeGeneratedStill(root, args[2], args[3]),
+        null,
+        2,
+      ),
+    );
     return 0;
   }
   if (command === 'screen-still') {
-    if (!args[2]) throw new Error('screen-still requires a relative image path');
-    console.log(JSON.stringify(await screenGeneratedStill(root, args[2]), null, 2));
+    if (!args[2])
+      throw new Error('screen-still requires a relative image path');
+    console.log(
+      JSON.stringify(await screenGeneratedStill(root, args[2]), null, 2),
+    );
     return 0;
   }
   if (command === 'new') {
