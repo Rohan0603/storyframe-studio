@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import {
   lstat,
@@ -97,6 +97,7 @@ export interface BatchPlan {
 export interface ImageReceipt {
   batchId?: string;
   attemptId: string;
+  dispatchToken: string;
   /** Real provider receipt, if the native client exposed one. */
   nativeReceiptId?: string;
   providerEvidence?: { path: string; sha256: string };
@@ -116,6 +117,7 @@ export type ReceiptTransition =
   | { status: 'dispatched' }
   | {
       status: 'persisted';
+      dispatchToken?: string;
       nativeReceiptId?: string;
       providerEvidence?: { path: string; sha256: string };
       outputPath: string;
@@ -170,6 +172,7 @@ export function createDispatchReceipt(
     );
   return {
     attemptId,
+    dispatchToken: randomUUID(),
     shotId,
     packetSha256,
     tool: 'codex-desktop.image_gen',
@@ -203,7 +206,16 @@ export function transitionReceipt(
     throw new Error(`receipt cannot transition from ${receipt.status}`);
   if (transition.status === 'dispatched')
     throw new Error('receipt cannot retry without an explicit new attempt');
-  return { ...receipt, ...transition, recordedAt: new Date().toISOString() };
+  const dispatchToken =
+    transition.status === 'persisted'
+      ? transition.dispatchToken
+      : receipt.dispatchToken;
+  return {
+    ...receipt,
+    ...transition,
+    dispatchToken: dispatchToken ?? receipt.dispatchToken,
+    recordedAt: new Date().toISOString(),
+  };
 }
 
 export function reconcileReceipt(
@@ -250,6 +262,7 @@ export interface ImageOutputMetadata {
     sha256: string;
     source: 'codex-desktop.image_gen';
     responseSha256: string;
+    dispatchToken: string;
   };
 }
 

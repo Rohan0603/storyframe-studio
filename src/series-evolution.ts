@@ -294,9 +294,33 @@ export async function loadEpisodeEvolution(
     }
     if (!Array.isArray(manifest.shots) || manifest.shots.length === 0)
       throw new Error('series predecessor has no canonical shots');
+    if (
+      manifest.series?.evolution &&
+      manifest.referenceBible?.status !== 'frozen'
+    )
+      throw new Error('series predecessor has no frozen reference bible');
+    if (manifest.referenceBible) {
+      const bibleBytes = await readFile(
+        await resolveContained(root, manifest.referenceBible.path),
+      );
+      if (
+        createHash('sha256').update(bibleBytes).digest('hex') !==
+        manifest.referenceBible.sha256
+      )
+        throw new Error('series predecessor reference bible hash mismatch');
+    }
     for (const shot of manifest.shots) {
       if (shot.image.status !== 'approved')
         throw new Error(`series predecessor shot ${shot.id} is not approved`);
+      if (
+        shot.semanticReview.status !== 'pass' ||
+        shot.semanticReview.reviewedImageSha256 !== shot.image.sha256 ||
+        !shot.semanticReview.notes.trim() ||
+        !shot.referenceBinding
+      )
+        throw new Error(
+          `series predecessor shot ${shot.id} lacks bound visual review evidence`,
+        );
       const bytes = await readFile(
         await resolveContained(root, shot.image.path),
       );

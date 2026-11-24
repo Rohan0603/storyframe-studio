@@ -950,13 +950,34 @@
         },
         "pixelEvidence": {
           "type": "object",
-          "required": ["path", "sha256"],
+          "required": [
+            "path",
+            "sha256",
+            "shotId",
+            "requiredVisualEvent",
+            "characters",
+            "props",
+            "environment",
+            "packetSha256",
+            "reviewedBy"
+          ],
           "properties": {
             "path": { "type": "string", "minLength": 1 },
             "sha256": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
-            }
+            },
+            "shotId": { "type": "string", "minLength": 1 },
+            "requiredVisualEvent": { "type": "string", "minLength": 1 },
+            "characters": { "type": "array", "items": { "type": "string" } },
+            "props": { "type": "array", "items": { "type": "string" } },
+            "environment": { "type": "string", "minLength": 1 },
+            "packetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "referenceFreezeSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "reviewedBy": { "type": "string", "minLength": 1 }
           }
         }
       },
@@ -970,7 +991,7 @@
             }
           },
           "then": {
-            "required": ["pixelsDecoded"],
+            "required": ["pixelsDecoded", "pixelEvidence"],
             "properties": {
               "pixelsDecoded": {
                 "const": true

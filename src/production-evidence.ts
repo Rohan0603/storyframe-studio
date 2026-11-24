@@ -50,6 +50,7 @@ export async function validateImageEvidence(
         sha(raw) !== p.providerEvidence.sha256 ||
         p.providerEvidence.source !== 'codex-desktop.image_gen' ||
         sha(raw) !== p.providerEvidence.responseSha256 ||
+        !p.providerEvidence.dispatchToken ||
         !raw.toString('utf8').includes('"source":"codex-desktop.image_gen"') ||
         !raw.toString('utf8').includes(p.nativeReceiptId)
       )
@@ -72,6 +73,7 @@ export async function validateImageEvidence(
         receipt.status !== p.receiptStatus ||
         !['persisted', 'reconciled'].includes(receipt.status) ||
         receipt.nativeReceiptId !== p.nativeReceiptId ||
+        receipt.dispatchToken !== p.providerEvidence.dispatchToken ||
         receipt.providerEvidence?.path !== p.providerEvidence.path ||
         receipt.providerEvidence?.sha256 !== p.providerEvidence.sha256 ||
         receipt.outputPath !== native.path ||
@@ -173,6 +175,14 @@ export async function validateImageEvidence(
         throw new Error('persisted pixel inspection evidence required');
       const inspection = await boundJson<{
         imageSha256: string;
+        shotId: string;
+        requiredVisualEvent: string;
+        characters: string[];
+        props: string[];
+        environment: string;
+        packetSha256: string;
+        referenceFreezeSha256?: string;
+        reviewedBy: string;
         pixelsDecoded: boolean;
         requiredActionPresent: boolean;
         requiredCharactersPresent: boolean;
@@ -184,6 +194,16 @@ export async function validateImageEvidence(
       }>(root, evidence.path, evidence.sha256);
       if (
         inspection.imageSha256 !== shot.image.sha256 ||
+        inspection.shotId !== shot.id ||
+        inspection.requiredVisualEvent !== shot.requiredVisualEvent ||
+        JSON.stringify(inspection.characters) !==
+          JSON.stringify(shot.characters) ||
+        JSON.stringify(inspection.props) !== JSON.stringify(shot.props) ||
+        inspection.environment !== shot.environment ||
+        inspection.packetSha256 !== shot.image.provenance?.packetSha256 ||
+        inspection.referenceFreezeSha256 !==
+          shot.referenceBinding?.freezeSha256 ||
+        !inspection.reviewedBy.trim() ||
         inspection.pixelsDecoded !== true ||
         !inspection.requiredActionPresent ||
         !inspection.requiredCharactersPresent ||

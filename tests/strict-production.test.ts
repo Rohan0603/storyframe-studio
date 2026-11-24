@@ -318,7 +318,15 @@ describe('strict production integration', () => {
     const { root, episode, evolution } = await fixture();
     const previous = JSON.stringify(evolution);
     episode.release.productionQAPassed = true;
-    for (const shot of episode.shots) shot.image.status = 'approved';
+    for (const shot of episode.shots) {
+      shot.image.status = 'approved';
+      shot.semanticReview = {
+        status: 'pass',
+        reviewedImageSha256: shot.image.sha256,
+        pixelsDecoded: true,
+        notes: 'Archived fixture review',
+      };
+    }
     const archived = JSON.stringify(episode);
     await writeFile(join(root, 'series-bible/previous.json'), previous);
     await writeFile(
