@@ -282,7 +282,13 @@ async function approvedAlignment(
       alignment.transcriptSha256 !== episode.narration.textSha256
     )
       throw new Error('alignment is not bound to current transcript/audio');
-    createSrt(alignment);
+    if (alignment.granularity === 'phrase') {
+      if (!episode.syncTimeline) throw new Error('phrase alignment requires an audio-locked subtitle timeline');
+      const checked = await validateSyncTimeline(episode, root);
+      if (!checked.valid) throw new Error('phrase sync timeline is invalid: ' + checked.errors.join('; '));
+      if (!alignment.evidenceNotes?.trim() || !alignment.phrases?.length)
+        throw new Error('phrase alignment requires explicit measured phrase evidence');
+    } else createSrt(alignment);
     return { alignment, reasons };
   } catch (error) {
     reasons.push(
