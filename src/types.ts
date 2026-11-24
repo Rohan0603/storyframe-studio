@@ -68,7 +68,13 @@ export interface Episode {
     productionQAPassed: boolean;
     creativeApproval: string | null;
     publishAuthorization: string | null;
-    youtubeTarget?: { videoId: string; state: 'scheduled' | 'public'; publishAt?: string; videoPath: string; videoSha256: string };
+    youtubeTarget?: {
+      videoId: string;
+      state: 'scheduled' | 'public';
+      publishAt?: string;
+      videoPath: string;
+      videoSha256: string;
+    };
     youtubeVerification?: { path: string; sha256: string };
   };
 }
@@ -85,7 +91,13 @@ export interface SeriesConfiguration {
     path: string;
     sha256: string;
     episodeOrder: number;
-    predecessor?: { path: string; sha256: string; manifestPath: string; manifestSha256: string; legacyMigrationNotes?: string };
+    predecessor?: {
+      path: string;
+      sha256: string;
+      manifestPath: string;
+      manifestSha256: string;
+      legacyMigrationNotes?: string;
+    };
   };
 }
 

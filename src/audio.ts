@@ -377,9 +377,15 @@ function groupKokoroTimings(
 }
 
 function validateKokoroAlignment(alignment: AudioAlignment): void {
-  if (alignment.source !== 'provider' ||
-      (alignment.wordEvidence === 'group-count-only' ? alignment.verified : !alignment.verified))
-    throw new Error('Kokoro timing evidence has an inconsistent verification status');
+  if (
+    alignment.source !== 'provider' ||
+    (alignment.wordEvidence === 'group-count-only'
+      ? alignment.verified
+      : !alignment.verified)
+  )
+    throw new Error(
+      'Kokoro timing evidence has an inconsistent verification status',
+    );
   validateWordTimings(alignment);
 }
 
@@ -761,7 +767,6 @@ export async function writeSrt(
   });
 }
 
-
 /**
  * Synthesize exact ordered phrases in one local Kokoro process. The measured
  * PCM frame counts, not word-count estimates, establish the cue boundaries.
@@ -778,10 +783,14 @@ export async function synthesizeKokoroPhrases(
   const phrases: string[] = [];
   let cursor = 0;
   for (const span of spans) {
-    if (!Number.isInteger(span.startChar) || !Number.isInteger(span.endChar) ||
-        span.startChar < cursor || span.endChar <= span.startChar ||
-        span.endChar > options.transcript.length ||
-        options.transcript.slice(cursor, span.startChar).trim())
+    if (
+      !Number.isInteger(span.startChar) ||
+      !Number.isInteger(span.endChar) ||
+      span.startChar < cursor ||
+      span.endChar <= span.startChar ||
+      span.endChar > options.transcript.length ||
+      options.transcript.slice(cursor, span.startChar).trim()
+    )
       throw new Error('phrase spans must cover the exact transcript in order');
     const text = options.transcript.slice(span.startChar, span.endChar);
     if (!text.trim()) throw new Error('empty phrase span');
@@ -790,13 +799,24 @@ export async function synthesizeKokoroPhrases(
   }
   if (options.transcript.slice(cursor).trim())
     throw new Error('phrase spans omit trailing narration');
-  const requestId = options.requestId ?? sha256(JSON.stringify({
-    provider: 'kokoro-onnx-phrase', model: options.modelPath, voices: options.voicesPath,
-    voice: options.voice, language: options.language ?? 'en-us', speed: options.speed ?? 1,
-    transcript: options.transcript, spans,
-  })).slice(0, 24);
+  const requestId =
+    options.requestId ??
+    sha256(
+      JSON.stringify({
+        provider: 'kokoro-onnx-phrase',
+        model: options.modelPath,
+        voices: options.voicesPath,
+        voice: options.voice,
+        language: options.language ?? 'en-us',
+        speed: options.speed ?? 1,
+        transcript: options.transcript,
+        spans,
+      }),
+    ).slice(0, 24);
   if (await readReceipt(root, requestId))
-    throw new Error('phrase request already has a receipt; inspect existing outputs before retry');
+    throw new Error(
+      'phrase request already has a receipt; inspect existing outputs before retry',
+    );
   const audioPath = options.outputPath ?? 'audio/narration.wav';
   const alignmentPath = options.alignmentPath ?? 'audio/alignment.json';
   const receiptPath = `receipts/tts-${requestId}.json`;
@@ -838,62 +858,137 @@ print(json.dumps({'sampleRate': 24000, 'frameCounts': counts}))
 `;
   try {
     await writeFile(input, JSON.stringify(phrases), 'utf8');
-    const measured = await new Promise<{ sampleRate: number; frameCounts: number[] }>((resolve, reject) => {
-      const child = spawn(options.pythonExecutable, [
-        '-c', script, options.modelPath, options.voicesPath, options.voice, input, output,
-        options.language ?? 'en-us', String(options.speed ?? 1),
-      ], { windowsHide: true, env: options.environment ? { ...process.env, ...options.environment } : undefined });
+    const measured = await new Promise<{
+      sampleRate: number;
+      frameCounts: number[];
+    }>((resolve, reject) => {
+      const child = spawn(
+        options.pythonExecutable,
+        [
+          '-c',
+          script,
+          options.modelPath,
+          options.voicesPath,
+          options.voice,
+          input,
+          output,
+          options.language ?? 'en-us',
+          String(options.speed ?? 1),
+        ],
+        {
+          windowsHide: true,
+          env: options.environment
+            ? { ...process.env, ...options.environment }
+            : undefined,
+        },
+      );
       let stdout = '';
       let stderr = '';
-      child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-      child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+      child.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
       child.once('error', reject);
       child.once('close', (code) => {
-        if (code !== 0) { reject(new Error('Kokoro phrase synthesis failed: ' + stderr.slice(-600))); return; }
-        try { resolve(JSON.parse(stdout) as { sampleRate: number; frameCounts: number[] }); }
-        catch { reject(new Error('Kokoro phrase synthesis returned invalid frame evidence')); }
+        if (code !== 0) {
+          reject(
+            new Error('Kokoro phrase synthesis failed: ' + stderr.slice(-600)),
+          );
+          return;
+        }
+        try {
+          resolve(
+            JSON.parse(stdout) as { sampleRate: number; frameCounts: number[] },
+          );
+        } catch {
+          reject(
+            new Error(
+              'Kokoro phrase synthesis returned invalid frame evidence',
+            ),
+          );
+        }
       });
     });
-    if (measured.sampleRate !== 24000 || !Array.isArray(measured.frameCounts) ||
-        measured.frameCounts.length !== phrases.length ||
-        measured.frameCounts.some((count) => !Number.isSafeInteger(count) || count <= 0))
+    if (
+      measured.sampleRate !== 24000 ||
+      !Array.isArray(measured.frameCounts) ||
+      measured.frameCounts.length !== phrases.length ||
+      measured.frameCounts.some(
+        (count) => !Number.isSafeInteger(count) || count <= 0,
+      )
+    )
       throw new Error('Kokoro phrase frame evidence is incomplete');
     const bytes = await readFile(output);
     const durationMs = parseWavDuration(bytes);
     let frames = 0;
     const phraseTimings = measured.frameCounts.map((count, index) => {
-      const startMs = Math.round(frames * 1000 / measured.sampleRate);
+      const startMs = Math.round((frames * 1000) / measured.sampleRate);
       frames += count;
-      const endMs = Math.round(frames * 1000 / measured.sampleRate);
+      const endMs = Math.round((frames * 1000) / measured.sampleRate);
       if (endMs <= startMs) throw new Error('phrase interval is too short');
       return { text: phrases[index]!, startMs, endMs };
     });
-    if (phraseTimings.at(-1)!.endMs !== durationMs ||
-        bytes.length !== 44 + frames * 2)
+    if (
+      phraseTimings.at(-1)!.endMs !== durationMs ||
+      bytes.length !== 44 + frames * 2
+    )
       throw new Error('measured phrase samples disagree with final PCM WAV');
     const audioSha256 = sha256(bytes);
     const alignment: AudioAlignment = {
       version: 1,
       transcriptSha256: sha256(options.transcript),
-      audioSha256, durationMs,
-      source: 'provider', verified: true, granularity: 'phrase',
-      evidenceNotes: 'Exact ordered transcript spans synthesized separately; boundaries measured from concatenated PCM frame counts. Listening QA is still required.',
-      phrases: phraseTimings, words: [],
+      audioSha256,
+      durationMs,
+      source: 'provider',
+      verified: true,
+      granularity: 'phrase',
+      evidenceNotes:
+        'Exact ordered transcript spans synthesized separately; boundaries measured from concatenated PCM frame counts. Listening QA is still required.',
+      phrases: phraseTimings,
+      words: [],
     };
-    const alignmentBytes = Buffer.from(JSON.stringify({
-      ...alignment, provider: 'kokoro-onnx', sampleRate: measured.sampleRate,
-      frameCounts: measured.frameCounts, phraseSpans: spans,
-    }, null, 2) + '\n');
+    const alignmentBytes = Buffer.from(
+      JSON.stringify(
+        {
+          ...alignment,
+          provider: 'kokoro-onnx',
+          sampleRate: measured.sampleRate,
+          frameCounts: measured.frameCounts,
+          phraseSpans: spans,
+        },
+        null,
+        2,
+      ) + '\n',
+    );
     await writeNewFile(root, audioPath, bytes);
     await writeNewFile(root, alignmentPath, alignmentBytes);
     await writeReceipt(root, requestId, {
-      version: 1, requestId, provider: 'kokoro-onnx', model: 'kokoro-onnx',
-      voiceName: options.voice, transcriptSha256: alignment.transcriptSha256,
-      status: 'persisted', audioPath, audioSha256, durationMs, alignmentPath,
+      version: 1,
+      requestId,
+      provider: 'kokoro-onnx',
+      model: 'kokoro-onnx',
+      voiceName: options.voice,
+      transcriptSha256: alignment.transcriptSha256,
+      status: 'persisted',
+      audioPath,
+      audioSha256,
+      durationMs,
+      alignmentPath,
       recordedAt: new Date().toISOString(),
     });
-    return { requestId, audioPath, audioSha256, durationMs, mimeType: 'audio/wav',
-      alignment, alignmentPath, alignmentSha256: sha256(alignmentBytes), receiptPath };
+    return {
+      requestId,
+      audioPath,
+      audioSha256,
+      durationMs,
+      mimeType: 'audio/wav',
+      alignment,
+      alignmentPath,
+      alignmentSha256: sha256(alignmentBytes),
+      receiptPath,
+    };
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

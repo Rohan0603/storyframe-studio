@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolveContained } from './paths.js';
 import { isStableId } from './ids.js';
-import type { Episode, ReferenceBible, SeriesConfiguration, Shot } from './types.js';
+import type {
+  Episode,
+  ReferenceBible,
+  SeriesConfiguration,
+  Shot,
+} from './types.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 
@@ -215,7 +220,6 @@ export function validateShotEvolution(
   return errors;
 }
 
-
 /** Complete, versioned episode history. A predecessor is an archived,
  * hash-bound prior episode manifest, not just an arbitrary current state.
  * A legacy migration is explicit and requires reviewed baseline notes.
@@ -237,11 +241,16 @@ export async function loadEpisodeEvolution(
   if (!loaded.evolution || loaded.errors.length)
     throw new Error(loaded.errors.join('; '));
   const evolution = loaded.evolution;
-  if (evolution.throughEpisode !== config.episodeOrder || evolution.episodeId !== episode.episodeId)
+  if (
+    evolution.throughEpisode !== config.episodeOrder ||
+    evolution.episodeId !== episode.episodeId
+  )
     throw new Error('series evolution must identify its current episode order');
   const prior = config.predecessor;
   if (config.episodeOrder > 1 && !prior)
-    throw new Error('series evolution requires its approved predecessor snapshot');
+    throw new Error(
+      'series evolution requires its approved predecessor snapshot',
+    );
   if (prior) {
     const readBound = async (path: string, sha: string): Promise<Buffer> => {
       const bytes = await readFile(await resolveContained(root, path));
@@ -253,7 +262,9 @@ export async function loadEpisodeEvolution(
       (await readBound(prior.path, prior.sha256)).toString('utf8'),
     ) as SeriesEvolution;
     const manifest = JSON.parse(
-      (await readBound(prior.manifestPath, prior.manifestSha256)).toString('utf8'),
+      (await readBound(prior.manifestPath, prior.manifestSha256)).toString(
+        'utf8',
+      ),
     ) as Episode;
     if (
       validateEvolutionShape(previous).length ||
@@ -269,30 +280,55 @@ export async function loadEpisodeEvolution(
         manifest.series.evolution.episodeOrder !== previous.throughEpisode ||
         manifest.series.evolution.sha256 !== prior.sha256
       )
-        throw new Error('series predecessor snapshot is not anchored to prior manifest');
+        throw new Error(
+          'series predecessor snapshot is not anchored to prior manifest',
+        );
     } else if (!prior.legacyMigrationNotes?.trim()) {
-      throw new Error('legacy series predecessor requires reviewed migration baseline');
+      throw new Error(
+        'legacy series predecessor requires reviewed migration baseline',
+      );
     }
     for (const old of previous.entities) {
-      const current = evolution.entities.find((entity) => entity.entityId === old.entityId);
+      const current = evolution.entities.find(
+        (entity) => entity.entityId === old.entityId,
+      );
       if (
         !current ||
         current.kind !== old.kind ||
-        JSON.stringify(current.states.slice(0, old.states.length)) !== JSON.stringify(old.states)
+        JSON.stringify(current.states.slice(0, old.states.length)) !==
+          JSON.stringify(old.states)
       )
-        throw new Error('series predecessor history was removed or rewritten: ' + old.entityId);
-      if (current.states.slice(old.states.length).some((state) => state.fromEpisode !== config.episodeOrder))
+        throw new Error(
+          'series predecessor history was removed or rewritten: ' +
+            old.entityId,
+        );
+      if (
+        current.states
+          .slice(old.states.length)
+          .some((state) => state.fromEpisode !== config.episodeOrder)
+      )
         throw new Error('series evolution cannot backdate a new state');
     }
     for (const entity of evolution.entities) {
-      if (!previous.entities.some((old) => old.entityId === entity.entityId) &&
-          entity.states.some((state) => state.fromEpisode !== config.episodeOrder))
-        throw new Error('new series entity cannot be backdated: ' + entity.entityId);
+      if (
+        !previous.entities.some((old) => old.entityId === entity.entityId) &&
+        entity.states.some((state) => state.fromEpisode !== config.episodeOrder)
+      )
+        throw new Error(
+          'new series entity cannot be backdated: ' + entity.entityId,
+        );
     }
   }
-  for (const [kind, roster] of [['character', episode.story?.canon.characters ?? []], ['prop', episode.story?.canon.props ?? []]] as const) {
+  for (const [kind, roster] of [
+    ['character', episode.story?.canon.characters ?? []],
+    ['prop', episode.story?.canon.props ?? []],
+  ] as const) {
     for (const item of roster)
-      if (!evolution.entities.some((entity) => entity.entityId === item.id && entity.kind === kind))
+      if (
+        !evolution.entities.some(
+          (entity) => entity.entityId === item.id && entity.kind === kind,
+        )
+      )
         throw new Error('series snapshot omits a canonical entity: ' + item.id);
   }
   for (const entity of evolution.entities) {
@@ -305,13 +341,22 @@ export async function loadEpisodeEvolution(
         !transitionShot ||
         !state.fromBeatId ||
         !transitionShot.beatIds.includes(state.fromBeatId) ||
-        episode.shots.findIndex((shot) => shot.beatIds.includes(state.fromBeatId!)) !== state.fromShot ||
+        episode.shots.findIndex((shot) =>
+          shot.beatIds.includes(state.fromBeatId!),
+        ) !== state.fromShot ||
         state.scriptRevisionSha256 !== episode.story?.scriptRevision.textSha256
       )
-        throw new Error('series state has a stale or missing story-beat transition: ' + state.id);
+        throw new Error(
+          'series state has a stale or missing story-beat transition: ' +
+            state.id,
+        );
     }
   }
-  return { evolution, snapshotSha256: config.sha256, episodeOrder: config.episodeOrder };
+  return {
+    evolution,
+    snapshotSha256: config.sha256,
+    episodeOrder: config.episodeOrder,
+  };
 }
 
 /** The generation and manifest gates use the same state resolver. */
@@ -339,9 +384,13 @@ export function validateResolvedShotEvolution(
   ];
   const allowed = new Set<string>();
   for (const { id, kind } of required) {
-    const entity = validated.evolution.entities.find((item) => item.entityId === id);
+    const entity = validated.evolution.entities.find(
+      (item) => item.entityId === id,
+    );
     if (!entity || entity.kind !== kind) {
-      errors.push(`shot ${shot.id} is missing tracked ${kind} history for ${id}`);
+      errors.push(
+        `shot ${shot.id} is missing tracked ${kind} history for ${id}`,
+      );
       continue;
     }
     const state = activeEvolutionState(entity, validated.episodeOrder, index);
@@ -356,15 +405,24 @@ export function validateResolvedShotEvolution(
       entry.image.sha256 !== state.referenceSha256 ||
       !entry.image.approved
     )
-      errors.push(`shot ${shot.id} active reference does not match entity, kind, canon and hash for ${id}`);
+      errors.push(
+        `shot ${shot.id} active reference does not match entity, kind, canon and hash for ${id}`,
+      );
   }
   for (const id of shot.referenceBinding?.referenceIds ?? []) {
     const entry = bible.entries.find((item) => item.id === id);
     if (entry?.kind !== 'style' && !allowed.has(id))
-      errors.push(`shot ${shot.id} binds an obsolete or unrelated visual reference ${id}`);
+      errors.push(
+        `shot ${shot.id} binds an obsolete or unrelated visual reference ${id}`,
+      );
   }
   return [
     ...errors,
-    ...validateShotEvolution(validated.evolution, validated.episodeOrder, shot, index),
+    ...validateShotEvolution(
+      validated.evolution,
+      validated.episodeOrder,
+      shot,
+      index,
+    ),
   ];
 }

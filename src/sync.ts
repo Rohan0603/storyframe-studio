@@ -3,7 +3,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
 import { resolveContained } from './paths.js';
 import type { Episode, SyncTimeline, SyncTimelineRecord } from './types.js';
-import { validateMeasuredCueTiming, type MeasuredAlignment } from './measured-timing.js';
+import {
+  validateMeasuredCueTiming,
+  type MeasuredAlignment,
+} from './measured-timing.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 const normalise = (value: string): string =>
@@ -59,10 +62,16 @@ export async function validateSyncTimeline(
     errors.push('sync timeline audio is unavailable or unsafe');
   }
   try {
-    const alignmentBytes = await readFile(await resolveContained(root, timeline.alignmentPath));
-    if ((episode.imagePolicy || episode.series?.evolution) &&
-        episode.narration.alignmentSha256 !== hash(alignmentBytes))
-      errors.push('strict sync timeline requires current alignment evidence hash');
+    const alignmentBytes = await readFile(
+      await resolveContained(root, timeline.alignmentPath),
+    );
+    if (
+      (episode.imagePolicy || episode.series?.evolution) &&
+      episode.narration.alignmentSha256 !== hash(alignmentBytes)
+    )
+      errors.push(
+        'strict sync timeline requires current alignment evidence hash',
+      );
     const alignment = JSON.parse(alignmentBytes.toString('utf8')) as {
       verified?: boolean;
       source?: string;
@@ -78,7 +87,11 @@ export async function validateSyncTimeline(
       alignment.transcriptSha256 !== episode.narration.textSha256
     )
       errors.push('sync timeline alignment evidence is stale or unverified');
-    if (episode.imagePolicy || episode.series?.evolution || alignment.granularity)
+    if (
+      episode.imagePolicy ||
+      episode.series?.evolution ||
+      alignment.granularity
+    )
       errors.push(...validateMeasuredCueTiming(timeline, alignment));
   } catch {
     errors.push('sync timeline alignment evidence is unavailable or unsafe');

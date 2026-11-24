@@ -11,7 +11,10 @@ import {
 import type { Episode, ValidationResult } from './types.js';
 import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
-import { createShotPromptPacket, readPersistedImage } from './image-generation.js';
+import {
+  createShotPromptPacket,
+  readPersistedImage,
+} from './image-generation.js';
 import { validateSyncTimeline } from './sync.js';
 import { validateImageEvidence } from './production-evidence.js';
 import { validatePublicationReceipt } from './youtube-state.js';
@@ -111,10 +114,14 @@ export async function validateEpisode(
       try {
         seriesEvolution = await loadEpisodeEvolution(root, episode);
       } catch (error) {
-        errors.push('series evolution: ' + (error instanceof Error ? error.message : String(error)));
+        errors.push(
+          'series evolution: ' +
+            (error instanceof Error ? error.message : String(error)),
+        );
       }
     }
-    if (strict && (!series.applied || !series.evolution)) errors.push('strict series production requires applied evolution');
+    if (strict && (!series.applied || !series.evolution))
+      errors.push('strict series production requires applied evolution');
     await verifyFile(
       root,
       series.biblePath,
@@ -137,7 +144,9 @@ export async function validateEpisode(
       episode.imagePolicy.requireNativeReceipt !== true ||
       episode.imagePolicy.requireVisualScreening !== true)
   )
-    errors.push('imagePolicy must define 1920x1080 and enable both QA switches');
+    errors.push(
+      'imagePolicy must define 1920x1080 and enable both QA switches',
+    );
   if (episode.series?.evolution && !episode.imagePolicy)
     errors.push('evolving series production requires strict imagePolicy');
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
@@ -613,33 +622,69 @@ export async function validateEpisode(
     } else if (episode.referenceBible?.status === 'frozen') {
       errors.push(`shot ${shot.id} is missing a frozen reference binding`);
     }
-    if (seriesEvolution && parsedReferenceBible && shot.characters && shot.props) {
+    if (
+      seriesEvolution &&
+      parsedReferenceBible &&
+      shot.characters &&
+      shot.props
+    ) {
       try {
-        errors.push(...validateResolvedShotEvolution(episode, shot, seriesEvolution, parsedReferenceBible));
+        errors.push(
+          ...validateResolvedShotEvolution(
+            episode,
+            shot,
+            seriesEvolution,
+            parsedReferenceBible,
+          ),
+        );
       } catch (error) {
-        errors.push('shot evolution: ' + (error instanceof Error ? error.message : String(error)));
+        errors.push(
+          'shot evolution: ' +
+            (error instanceof Error ? error.message : String(error)),
+        );
       }
     }
     if (strict && shot.image.sha256 !== null) {
       const receiptId = shot.image.provenance?.nativeReceiptId;
       if (receiptId) {
-        if (nativeReceiptIds.has(receiptId)) errors.push('duplicate native generation receipt: ' + receiptId);
+        if (nativeReceiptIds.has(receiptId))
+          errors.push('duplicate native generation receipt: ' + receiptId);
         nativeReceiptIds.add(receiptId);
       }
-      errors.push(...await validateImageEvidence(root, episode, shot));
+      errors.push(...(await validateImageEvidence(root, episode, shot)));
       try {
-        if (!parsedReferenceBible || !loadedReferenceBible?.valid || !episode.story)
-          throw new Error('strict image requires validated frozen references and script');
+        if (
+          !parsedReferenceBible ||
+          !loadedReferenceBible?.valid ||
+          !episode.story
+        )
+          throw new Error(
+            'strict image requires validated frozen references and script',
+          );
         const packet = createShotPromptPacket(
-          episode, shot, episode.story.scriptRevision.text,
-          { bible: parsedReferenceBible, freezeSha256: loadedReferenceBible.freezeSha256, valid: true },
+          episode,
+          shot,
+          episode.story.scriptRevision.text,
+          {
+            bible: parsedReferenceBible,
+            freezeSha256: loadedReferenceBible.freezeSha256,
+            valid: true,
+          },
           seriesEvolution ?? undefined,
         );
-        if (shot.image.provenance?.packetSha256 !== packet.packetSha256 ||
-            (shot.semanticReview.status === 'pass' && shot.semanticReview.reviewedPacketSha256 !== packet.packetSha256))
-          errors.push(`shot ${shot.id} image or pixel review is stale for current prompt and reference state`);
+        if (
+          shot.image.provenance?.packetSha256 !== packet.packetSha256 ||
+          (shot.semanticReview.status === 'pass' &&
+            shot.semanticReview.reviewedPacketSha256 !== packet.packetSha256)
+        )
+          errors.push(
+            `shot ${shot.id} image or pixel review is stale for current prompt and reference state`,
+          );
       } catch (error) {
-        errors.push('strict image packet: ' + (error instanceof Error ? error.message : String(error)));
+        errors.push(
+          'strict image packet: ' +
+            (error instanceof Error ? error.message : String(error)),
+        );
       }
     }
     if (episode.series?.applied) {
@@ -678,6 +723,6 @@ export async function validateEpisode(
       );
     }
   }
-  errors.push(...await validatePublicationReceipt(root, episode));
+  errors.push(...(await validatePublicationReceipt(root, episode)));
   return { valid: errors.length === 0, errors };
 }

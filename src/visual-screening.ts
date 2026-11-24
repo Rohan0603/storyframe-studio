@@ -85,7 +85,11 @@ export function detectPanelGutters(
       gray[vertical ? b * width + a : a * width + b]!;
     for (const polarity of [0, 255]) {
       let start = -1;
-      for (let x = Math.floor(across * 0.2); x <= Math.floor(across * 0.8); x++) {
+      for (
+        let x = Math.floor(across * 0.2);
+        x <= Math.floor(across * 0.8);
+        x++
+      ) {
         let near = 0;
         for (let b = 0; b < along; b++)
           if (Math.abs(at(x, b) - polarity) < 32) near++;
@@ -96,8 +100,11 @@ export function detectPanelGutters(
           if (band >= 3 && band <= across * 0.15) {
             let contrast = 0;
             for (let b = 0; b < along; b++)
-              if (Math.abs(at(start - 1, b) - polarity) > 35 &&
-                  Math.abs(at(x, b) - polarity) > 35) contrast++;
+              if (
+                Math.abs(at(start - 1, b) - polarity) > 35 &&
+                Math.abs(at(x, b) - polarity) > 35
+              )
+                contrast++;
             if (contrast / along >= threshold) return true;
           }
           start = -1;
@@ -198,5 +205,9 @@ export async function persistStillScreening(
   const bytes = Buffer.from(JSON.stringify(result, null, 2) + '\n');
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, bytes, { flag: 'wx' });
-  return { ...result, evidencePath, evidenceSha256: createHash('sha256').update(bytes).digest('hex') };
+  return {
+    ...result,
+    evidencePath,
+    evidenceSha256: createHash('sha256').update(bytes).digest('hex'),
+  };
 }

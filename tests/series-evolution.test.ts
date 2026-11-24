@@ -189,9 +189,14 @@ describe('time-versioned series references', () => {
   });
 });
 
-
 describe('complete series evolution', () => {
   it('rejects an empty state inventory', () => {
-    expect(validateEvolutionShape({ version: 1, seriesId: 'series-journey', entities: [] })).not.toEqual([]);
+    expect(
+      validateEvolutionShape({
+        version: 1,
+        seriesId: 'series-journey',
+        entities: [],
+      }),
+    ).not.toEqual([]);
   });
 });

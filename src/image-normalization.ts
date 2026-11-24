@@ -57,21 +57,21 @@ export async function normalizeGeneratedStill(
   const temporary = `${output}.${randomUUID()}.png`;
   try {
     await execute(ffmpegPath, [
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-n',
-    '-i',
-    input,
-    '-vf',
-    'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=rgb24',
-    '-frames:v',
-    '1',
-    '-f',
-    'image2',
-    '-vcodec',
-    'png',
-    temporary,
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-n',
+      '-i',
+      input,
+      '-vf',
+      'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=rgb24',
+      '-frames:v',
+      '1',
+      '-f',
+      'image2',
+      '-vcodec',
+      'png',
+      temporary,
     ]);
     await link(temporary, output);
   } finally {
@@ -95,5 +95,9 @@ export async function normalizeGeneratedStill(
   const bytes = Buffer.from(JSON.stringify(evidence, null, 2) + '\n');
   await mkdir(dirname(receipt), { recursive: true });
   await writeFile(receipt, bytes, { flag: 'wx' });
-  return { ...evidence, receiptPath, receiptSha256: createHash('sha256').update(bytes).digest('hex') };
+  return {
+    ...evidence,
+    receiptPath,
+    receiptSha256: createHash('sha256').update(bytes).digest('hex'),
+  };
 }

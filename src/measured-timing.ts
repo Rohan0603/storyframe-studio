@@ -16,7 +16,10 @@ export interface MeasuredAlignment {
 }
 
 const normalize = (text: string): string =>
-  text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 
 /**
  * Match each cue to a consecutive, non-reused measured unit range.
@@ -36,7 +39,9 @@ export function validateMeasuredCueTiming(
     alignment.granularity === 'word' &&
     !['token-aligned', 'manual-reviewed'].includes(alignment.wordEvidence ?? '')
   )
-    return ['verified word alignment requires lexical token mapping or manual review'];
+    return [
+      'verified word alignment requires lexical token mapping or manual review',
+    ];
   const units =
     alignment.granularity === 'phrase'
       ? alignment.phrases
@@ -77,7 +82,9 @@ export function validateMeasuredCueTiming(
         if (!wanted.startsWith(joined)) break;
       }
       if (joined !== wanted || cursor === first) {
-        errors.push(`subtitle ${cue.cueId} does not match consecutive measured speech`);
+        errors.push(
+          `subtitle ${cue.cueId} does not match consecutive measured speech`,
+        );
         return errors;
       }
       const speechStart = units[first]!.startMs;
@@ -93,7 +100,9 @@ export function validateMeasuredCueTiming(
         cue.endMs < speechEnd - tolerance ||
         cue.endMs > right + tolerance
       )
-        errors.push(`subtitle ${cue.cueId} timing disagrees with measured speech boundaries`);
+        errors.push(
+          `subtitle ${cue.cueId} timing disagrees with measured speech boundaries`,
+        );
     }
   }
   if (cursor !== units.length)

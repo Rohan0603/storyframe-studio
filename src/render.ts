@@ -85,7 +85,9 @@ export async function renderStillEpisode(
   if (episode.imagePolicy || episode.series?.evolution) {
     const validation = await validateEpisode(episode, root);
     if (!validation.valid)
-      throw new Error(`render requires strict manifest validation: ${validation.errors.join('; ')}`);
+      throw new Error(
+        `render requires strict manifest validation: ${validation.errors.join('; ')}`,
+      );
   }
   const sync = await validateSyncTimeline(episode, root);
   if (!sync.valid)
@@ -139,12 +141,14 @@ export async function renderStillEpisode(
         : [];
     const filterParts: string[] = [];
     for (const [index, shot] of episode.shots.entries()) {
-      const firstFrame = Math.round(shot.audioStartMs * 30 / 1000);
-      const lastFrame = index === episode.shots.length - 1
-        ? Math.ceil(shot.audioEndMs * 30 / 1000)
-        : Math.round(shot.audioEndMs * 30 / 1000);
+      const firstFrame = Math.round((shot.audioStartMs * 30) / 1000);
+      const lastFrame =
+        index === episode.shots.length - 1
+          ? Math.ceil((shot.audioEndMs * 30) / 1000)
+          : Math.round((shot.audioEndMs * 30) / 1000);
       const frames = lastFrame - firstFrame;
-      if (frames < 1) throw new Error('shot is shorter than one output frame: ' + shot.id);
+      if (frames < 1)
+        throw new Error('shot is shorter than one output frame: ' + shot.id);
       filterParts.push(
         `[${index}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p,trim=end_frame=${frames},setpts=PTS-STARTPTS[v${index}]`,
       );

@@ -36,7 +36,11 @@ export function verifyPublicationStatus(
   )
     throw new Error('YouTube has not accepted/processed the video upload');
   if (expected.state === 'scheduled') {
-    if (!expected.publishAt || !/(?:Z|[+-]\d{2}:\d{2})$/.test(expected.publishAt) || !Number.isFinite(Date.parse(expected.publishAt)))
+    if (
+      !expected.publishAt ||
+      !/(?:Z|[+-]\d{2}:\d{2})$/.test(expected.publishAt) ||
+      !Number.isFinite(Date.parse(expected.publishAt))
+    )
       throw new Error('expected schedule must specify an ISO publication time');
     if (
       status.privacyStatus !== 'private' ||
@@ -52,7 +56,10 @@ export function verifyPublicationStatus(
   }
   if (expected.state === 'public' && status.uploadStatus !== 'processed')
     throw new Error('public video upload processing is unconfirmed');
-  if (expected.state === 'scheduled' && !['uploaded', 'processed'].includes(status.uploadStatus ?? ''))
+  if (
+    expected.state === 'scheduled' &&
+    !['uploaded', 'processed'].includes(status.uploadStatus ?? '')
+  )
     throw new Error('scheduled video upload status is unconfirmed');
   return {
     videoId,
@@ -74,7 +81,9 @@ export async function fetchAndVerifyYouTubeState(
   accessToken: string,
   fetchImpl: typeof fetch = fetch,
   binding?: { episodeId: string; videoSha256: string },
-): Promise<PublicationVerification & { receiptPath: string; receiptSha256: string }> {
+): Promise<
+  PublicationVerification & { receiptPath: string; receiptSha256: string }
+> {
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId))
     throw new Error('invalid YouTube video ID');
   if (!accessToken.trim())
@@ -96,15 +105,21 @@ export async function fetchAndVerifyYouTubeState(
   const resource = json.items?.find((item) => item.id === videoId);
   if (!resource?.status)
     throw new Error('YouTube status unavailable for this video');
-  const result = { ...verifyPublicationStatus(videoId, resource.status, expected), ...binding };
+  const result = {
+    ...verifyPublicationStatus(videoId, resource.status, expected),
+    ...binding,
+  };
   const receiptPath = `receipts/youtube-verification-${videoId}-${randomUUID()}.json`;
   const path = await resolveContained(root, receiptPath);
   const bytes = Buffer.from(JSON.stringify(result, null, 2) + '\n');
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, bytes, { flag: 'wx' });
-  return { ...result, receiptPath, receiptSha256: createHash('sha256').update(bytes).digest('hex') };
+  return {
+    ...result,
+    receiptPath,
+    receiptSha256: createHash('sha256').update(bytes).digest('hex'),
+  };
 }
-
 
 export async function verifyEpisodeYouTubeState(
   root: string,
@@ -113,25 +128,50 @@ export async function verifyEpisodeYouTubeState(
   expected: { state: 'scheduled' | 'public'; publishAt?: string },
   accessToken: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<PublicationVerification & { receiptPath: string; receiptSha256: string }> {
+): Promise<
+  PublicationVerification & { receiptPath: string; receiptSha256: string }
+> {
   const target = episode.release.youtubeTarget;
-  if (!target || !episode.release.publishAuthorization?.trim() ||
-      target.videoId !== videoId || target.state !== expected.state ||
-      (expected.state === 'scheduled' && Date.parse(target.publishAt ?? '') !== Date.parse(expected.publishAt ?? '')))
-    throw new Error('verify-youtube requires the explicitly authorized episode publication target');
+  if (
+    !target ||
+    !episode.release.publishAuthorization?.trim() ||
+    target.videoId !== videoId ||
+    target.state !== expected.state ||
+    (expected.state === 'scheduled' &&
+      Date.parse(target.publishAt ?? '') !==
+        Date.parse(expected.publishAt ?? ''))
+  )
+    throw new Error(
+      'verify-youtube requires the explicitly authorized episode publication target',
+    );
   const bytes = await readFile(await resolveContained(root, target.videoPath));
   if (createHash('sha256').update(bytes).digest('hex') !== target.videoSha256)
     throw new Error('publication target video bytes are stale');
-  if (episode.production?.render && (episode.production.render.sha256 !== target.videoSha256 ||
-      episode.production.render.path !== target.videoPath))
+  if (
+    episode.production?.render &&
+    (episode.production.render.sha256 !== target.videoSha256 ||
+      episode.production.render.path !== target.videoPath)
+  )
     throw new Error('publication target is not the approved render');
-  const result = await fetchAndVerifyYouTubeState(root, videoId, expected, accessToken, fetchImpl,
-    { episodeId: episode.episodeId, videoSha256: target.videoSha256 });
-  episode.release.youtubeVerification = { path: result.receiptPath, sha256: result.receiptSha256 };
+  const result = await fetchAndVerifyYouTubeState(
+    root,
+    videoId,
+    expected,
+    accessToken,
+    fetchImpl,
+    { episodeId: episode.episodeId, videoSha256: target.videoSha256 },
+  );
+  episode.release.youtubeVerification = {
+    path: result.receiptPath,
+    sha256: result.receiptSha256,
+  };
   return result;
 }
 
-export async function validatePublicationReceipt(root: string, episode: Episode): Promise<string[]> {
+export async function validatePublicationReceipt(
+  root: string,
+  episode: Episode,
+): Promise<string[]> {
   const evidence = episode.release?.youtubeVerification;
   if (!evidence) return [];
   try {
@@ -141,20 +181,35 @@ export async function validatePublicationReceipt(root: string, episode: Episode)
     const bytes = await readFile(await resolveContained(root, evidence.path));
     if (createHash('sha256').update(bytes).digest('hex') !== evidence.sha256)
       throw new Error('publication receipt hash mismatch');
-    const receipt = JSON.parse(bytes.toString('utf8')) as PublicationVerification;
-    if (receipt.source !== 'youtube-data-api-v3' || receipt.episodeId !== episode.episodeId ||
-        receipt.videoId !== target.videoId || receipt.videoSha256 !== target.videoSha256 ||
-        receipt.state !== target.state || !Number.isFinite(Date.parse(receipt.verifiedAt)) ||
-        (target.state === 'public' && receipt.privacyStatus !== 'public') ||
-        (target.state === 'scheduled' && (receipt.privacyStatus !== 'private' ||
-          Date.parse(receipt.publishAt ?? '') !== Date.parse(target.publishAt ?? '') ||
-          Date.parse(receipt.verifiedAt) >= Date.parse(receipt.publishAt ?? ''))))
+    const receipt = JSON.parse(
+      bytes.toString('utf8'),
+    ) as PublicationVerification;
+    if (
+      receipt.source !== 'youtube-data-api-v3' ||
+      receipt.episodeId !== episode.episodeId ||
+      receipt.videoId !== target.videoId ||
+      receipt.videoSha256 !== target.videoSha256 ||
+      receipt.state !== target.state ||
+      !Number.isFinite(Date.parse(receipt.verifiedAt)) ||
+      (target.state === 'public' && receipt.privacyStatus !== 'public') ||
+      (target.state === 'scheduled' &&
+        (receipt.privacyStatus !== 'private' ||
+          Date.parse(receipt.publishAt ?? '') !==
+            Date.parse(target.publishAt ?? '') ||
+          Date.parse(receipt.verifiedAt) >=
+            Date.parse(receipt.publishAt ?? '')))
+    )
       throw new Error('publication receipt does not match episode target');
-    const video = await readFile(await resolveContained(root, target.videoPath));
+    const video = await readFile(
+      await resolveContained(root, target.videoPath),
+    );
     if (createHash('sha256').update(video).digest('hex') !== target.videoSha256)
       throw new Error('published video target is stale');
     return [];
   } catch (error) {
-    return ['publication verification: ' + (error instanceof Error ? error.message : String(error))];
+    return [
+      'publication verification: ' +
+        (error instanceof Error ? error.message : String(error)),
+    ];
   }
 }

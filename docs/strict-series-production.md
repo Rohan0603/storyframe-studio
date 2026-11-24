@@ -6,6 +6,7 @@ inventing historical evidence. Before starting the next episode, inspect the
 actual previous manifests, images and final appearances locally.
 
 ## Series evolution
+
 The per-episode snapshot includes `episodeId`, `throughEpisode`, and all
 character, prop and environment entities shown in the episode. Each state has
 `fromEpisode`, zero-based `fromShot`, `fromBeatId`,
@@ -28,6 +29,7 @@ Use that hash in dispatch and image provenance, and record
 semanticReview.reviewedPacketSha256 only after reviewing current pixels.
 
 ## Image evidence
+
 Retain original native output, raw native tool response and its actual
 receipt ID. Store the native provider evidence path/hash, dispatch journal
 path and SHA-256 of JSON.stringify(the exact persisted journal entry).
@@ -44,6 +46,7 @@ suspected panels remain blocked. The heuristic is not a substitute for
 independent pixel review.
 
 ## Audio and sync
+
 Supply `phraseSpans` (exact approved transcript startChar/endChar pairs) to
 `synthesizeKokoroTts` to synthesize each segment locally in one model process
 and measure cumulative PCM samples. Persist its alignmentSha256 in narration.
@@ -54,6 +57,7 @@ whole narration and inspect the actual video. The strict renderer validates
 the same manifest and rounds absolute cut positions to 30 fps.
 
 ## Publication
+
 Only after a separately user-authorized YouTube action, bind the intended
 video ID, scheduled/public state, exact schedule if applicable, local approved
 video path and SHA under release.youtubeTarget, plus the existing recorded

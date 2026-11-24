@@ -23,10 +23,7 @@
       "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
     },
     "mode": {
-      "enum": [
-        "guided",
-        "auto"
-      ]
+      "enum": ["guided", "auto"]
     },
     "script": {
       "$ref": "#/$defs/hashedPath"
@@ -157,22 +154,14 @@
       "properties": {
         "youtubeTarget": {
           "type": "object",
-          "required": [
-            "videoId",
-            "state",
-            "videoPath",
-            "videoSha256"
-          ],
+          "required": ["videoId", "state", "videoPath", "videoSha256"],
           "properties": {
             "videoId": {
               "type": "string",
               "pattern": "^[A-Za-z0-9_-]{11}$"
             },
             "state": {
-              "enum": [
-                "scheduled",
-                "public"
-              ]
+              "enum": ["scheduled", "public"]
             },
             "publishAt": {
               "type": "string",
@@ -190,10 +179,7 @@
         },
         "youtubeVerification": {
           "type": "object",
-          "required": [
-            "path",
-            "sha256"
-          ],
+          "required": ["path", "sha256"],
           "properties": {
             "path": {
               "type": "string",
@@ -211,12 +197,7 @@
   "$defs": {
     "production": {
       "type": "object",
-      "required": [
-        "version",
-        "runId",
-        "policy",
-        "approvals"
-      ],
+      "required": ["version", "runId", "policy", "approvals"],
       "additionalProperties": false,
       "properties": {
         "version": {
@@ -356,12 +337,7 @@
         },
         "review": {
           "type": "object",
-          "required": [
-            "reviewer",
-            "notes",
-            "renderSha256",
-            "checks"
-          ],
+          "required": ["reviewer", "notes", "renderSha256", "checks"],
           "properties": {
             "reviewer": {
               "type": "string",
@@ -444,10 +420,7 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": [
-                  "startMs",
-                  "title"
-                ],
+                "required": ["startMs", "title"],
                 "properties": {
                   "startMs": {
                     "type": "integer",
@@ -466,17 +439,10 @@
     },
     "qaFinding": {
       "type": "object",
-      "required": [
-        "status",
-        "notes"
-      ],
+      "required": ["status", "notes"],
       "properties": {
         "status": {
-          "enum": [
-            "pass",
-            "fail",
-            "unknown"
-          ]
+          "enum": ["pass", "fail", "unknown"]
         },
         "notes": {
           "type": "string",
@@ -486,10 +452,7 @@
     },
     "hashedPath": {
       "type": "object",
-      "required": [
-        "path",
-        "sha256"
-      ],
+      "required": ["path", "sha256"],
       "properties": {
         "path": {
           "type": "string"
@@ -502,21 +465,11 @@
     },
     "story": {
       "type": "object",
-      "required": [
-        "scriptRevision",
-        "sourceClaims",
-        "canon",
-        "beatCandidates"
-      ],
+      "required": ["scriptRevision", "sourceClaims", "canon", "beatCandidates"],
       "properties": {
         "scriptRevision": {
           "type": "object",
-          "required": [
-            "id",
-            "text",
-            "textSha256",
-            "segments"
-          ]
+          "required": ["id", "text", "textSha256", "segments"]
         },
         "narrativePlan": {
           "type": "object",
@@ -583,11 +536,7 @@
         },
         "canon": {
           "type": "object",
-          "required": [
-            "characters",
-            "props",
-            "observations"
-          ]
+          "required": ["characters", "props", "observations"]
         },
         "beatCandidates": {
           "type": "array"
@@ -617,33 +566,18 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "timingStatus": {
-          "enum": [
-            "provisional",
-            "verified"
-          ]
+          "enum": ["provisional", "verified"]
         },
         "audioDurationMs": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "minimum": 1
         },
         "density": {
           "type": "object",
-          "required": [
-            "style",
-            "targetMin",
-            "targetMax"
-          ],
+          "required": ["style", "targetMin", "targetMax"],
           "properties": {
             "style": {
-              "enum": [
-                "reflective",
-                "cinematic",
-                "energetic",
-                "custom"
-              ]
+              "enum": ["reflective", "cinematic", "energetic", "custom"]
             },
             "targetMin": {
               "type": "number",
@@ -775,19 +709,11 @@
           }
         },
         "visualPurpose": {
-          "enum": [
-            "action",
-            "establishing",
-            "transition",
-            "hold"
-          ]
+          "enum": ["action", "establishing", "transition", "hold"]
         },
         "intentionalHold": {
           "type": "object",
-          "required": [
-            "reason",
-            "relatedBeatIds"
-          ],
+          "required": ["reason", "relatedBeatIds"],
           "properties": {
             "reason": {
               "type": "string",
@@ -818,20 +744,13 @@
     },
     "imageOutput": {
       "type": "object",
-      "required": [
-        "path",
-        "sha256",
-        "status"
-      ],
+      "required": ["path", "sha256", "status"],
       "properties": {
         "path": {
           "type": "string"
         },
         "sha256": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "pattern": "^[a-f0-9]{64}$"
         },
         "status": {
@@ -861,9 +780,7 @@
             }
           },
           "then": {
-            "required": [
-              "provenance"
-            ]
+            "required": ["provenance"]
           }
         }
       ]
@@ -896,12 +813,7 @@
         },
         "nativeImage": {
           "type": "object",
-          "required": [
-            "path",
-            "sha256",
-            "width",
-            "height"
-          ],
+          "required": ["path", "sha256", "width", "height"],
           "properties": {
             "path": {
               "type": "string",
@@ -922,10 +834,7 @@
           }
         },
         "receiptStatus": {
-          "enum": [
-            "persisted",
-            "reconciled"
-          ]
+          "enum": ["persisted", "reconciled"]
         },
         "width": {
           "type": "integer",
@@ -945,10 +854,7 @@
         },
         "providerEvidence": {
           "type": "object",
-          "required": [
-            "path",
-            "sha256"
-          ],
+          "required": ["path", "sha256"],
           "properties": {
             "path": {
               "type": "string",
@@ -962,10 +868,7 @@
         },
         "normalizationReceipt": {
           "type": "object",
-          "required": [
-            "path",
-            "sha256"
-          ],
+          "required": ["path", "sha256"],
           "properties": {
             "path": {
               "type": "string",
@@ -981,25 +884,13 @@
     },
     "semanticReview": {
       "type": "object",
-      "required": [
-        "status",
-        "reviewedImageSha256",
-        "notes"
-      ],
+      "required": ["status", "reviewedImageSha256", "notes"],
       "properties": {
         "status": {
-          "enum": [
-            "pending",
-            "pass",
-            "fail",
-            "unknown"
-          ]
+          "enum": ["pending", "pass", "fail", "unknown"]
         },
         "reviewedImageSha256": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "notes": {
           "type": "string"
@@ -1009,31 +900,17 @@
         },
         "screening": {
           "type": "object",
-          "required": [
-            "imageSha256",
-            "collage",
-            "text",
-            "checkedBy",
-            "notes"
-          ],
+          "required": ["imageSha256", "collage", "text", "checkedBy", "notes"],
           "properties": {
             "imageSha256": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
             },
             "collage": {
-              "enum": [
-                "clear",
-                "suspected",
-                "unknown"
-              ]
+              "enum": ["clear", "suspected", "unknown"]
             },
             "text": {
-              "enum": [
-                "clear",
-                "detected",
-                "unknown"
-              ]
+              "enum": ["clear", "detected", "unknown"]
             },
             "checkedBy": {
               "type": "string",
@@ -1075,9 +952,7 @@
             }
           },
           "then": {
-            "required": [
-              "pixelsDecoded"
-            ],
+            "required": ["pixelsDecoded"],
             "properties": {
               "pixelsDecoded": {
                 "const": true
@@ -1097,12 +972,7 @@
     },
     "referenceImage": {
       "type": "object",
-      "required": [
-        "path",
-        "sha256",
-        "mimeType",
-        "approved"
-      ],
+      "required": ["path", "sha256", "mimeType", "approved"],
       "properties": {
         "path": {
           "type": "string"
@@ -1112,12 +982,7 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "mimeType": {
-          "enum": [
-            "image/png",
-            "image/jpeg",
-            "image/gif",
-            "image/webp"
-          ]
+          "enum": ["image/png", "image/jpeg", "image/gif", "image/webp"]
         },
         "approved": {
           "type": "boolean"
@@ -1126,24 +991,13 @@
     },
     "referenceEntry": {
       "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "name",
-        "visualCanon",
-        "image"
-      ],
+      "required": ["id", "kind", "name", "visualCanon", "image"],
       "properties": {
         "id": {
           "type": "string"
         },
         "kind": {
-          "enum": [
-            "character",
-            "prop",
-            "environment",
-            "style"
-          ]
+          "enum": ["character", "prop", "environment", "style"]
         },
         "name": {
           "type": "string"
@@ -1226,11 +1080,7 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "status": {
-          "enum": [
-            "draft",
-            "frozen",
-            "stale"
-          ]
+          "enum": ["draft", "frozen", "stale"]
         }
       }
     },
@@ -1294,10 +1144,7 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "visualFormat": {
-          "enum": [
-            "2d-still",
-            "3d-still"
-          ]
+          "enum": ["2d-still", "3d-still"]
         },
         "applied": {
           "type": "boolean"
@@ -1305,11 +1152,7 @@
         "evolution": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "path",
-            "sha256",
-            "episodeOrder"
-          ],
+          "required": ["path", "sha256", "episodeOrder"],
           "properties": {
             "path": {
               "type": "string",
@@ -1326,12 +1169,7 @@
             "predecessor": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "path",
-                "sha256",
-                "manifestPath",
-                "manifestSha256"
-              ],
+              "required": ["path", "sha256", "manifestPath", "manifestSha256"],
               "properties": {
                 "path": {
                   "type": "string",
@@ -1361,10 +1199,7 @@
     },
     "seriesBinding": {
       "type": "object",
-      "required": [
-        "seriesId",
-        "revisionId"
-      ],
+      "required": ["seriesId", "revisionId"],
       "properties": {
         "seriesId": {
           "type": "string",
@@ -1385,13 +1220,7 @@
     },
     "syncSubtitle": {
       "type": "object",
-      "required": [
-        "cueId",
-        "startMs",
-        "endMs",
-        "text",
-        "alignmentStatus"
-      ],
+      "required": ["cueId", "startMs", "endMs", "text", "alignmentStatus"],
       "properties": {
         "cueId": {
           "type": "string",
@@ -1410,11 +1239,7 @@
           "minLength": 1
         },
         "alignmentStatus": {
-          "enum": [
-            "verified",
-            "provisional",
-            "unknown"
-          ]
+          "enum": ["verified", "provisional", "unknown"]
         },
         "sourceWordStart": {
           "type": "integer",
@@ -1484,10 +1309,7 @@
           "const": 1
         },
         "status": {
-          "enum": [
-            "verified",
-            "legacy-unverified"
-          ]
+          "enum": ["verified", "legacy-unverified"]
         },
         "audioSha256": {
           "type": "string",

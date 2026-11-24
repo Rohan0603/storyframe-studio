@@ -83,8 +83,13 @@ export async function runCli(args: string[]): Promise<number> {
     if (!videoId || (state !== 'public' && state !== 'scheduled'))
       throw new Error('verify-youtube requires video ID and public|scheduled');
     const episode = await load(root);
-    const result = await verifyEpisodeYouTubeState(root, episode, videoId,
-      { state, ...(args[4] ? { publishAt: args[4] } : {}) }, process.env.YOUTUBE_ACCESS_TOKEN ?? '');
+    const result = await verifyEpisodeYouTubeState(
+      root,
+      episode,
+      videoId,
+      { state, ...(args[4] ? { publishAt: args[4] } : {}) },
+      process.env.YOUTUBE_ACCESS_TOKEN ?? '',
+    );
     await saveProducerEpisode(root, episode);
     console.log(JSON.stringify(result, null, 2));
     return 0;
@@ -105,7 +110,13 @@ export async function runCli(args: string[]): Promise<number> {
   }
   if (command === 'shot-prompt') {
     if (!args[2]) throw new Error('shot-prompt requires a shot ID');
-    console.log(JSON.stringify(await createValidatedShotPromptPacket(root, await load(root), args[2]), null, 2));
+    console.log(
+      JSON.stringify(
+        await createValidatedShotPromptPacket(root, await load(root), args[2]),
+        null,
+        2,
+      ),
+    );
     return 0;
   }
   if (command === 'screen-still') {
