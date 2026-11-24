@@ -224,3 +224,33 @@ describe('canonical synchronized timeline', () => {
     });
   });
 });
+
+
+describe('measured audio boundaries', () => {
+  it('rejects a shifted shot and caption cut even with otherwise consistent timestamps', async () => {
+    const { episode, root } = await fixture();
+    const alignment = {
+      verified: true,
+      source: 'manual',
+      granularity: 'phrase',
+      evidenceNotes: 'Measured fixture phrase boundaries',
+      audioSha256: episode.narration.audioSha256,
+      durationMs: 4200,
+      transcriptSha256: episode.narration.textSha256,
+      phrases: episode.syncTimeline!.records.map((record) => ({
+        text: record.narration.text,
+        startMs: record.startMs,
+        endMs: record.endMs,
+      })),
+    };
+    await writeFile(join(root, 'audio/alignment.json'), JSON.stringify(alignment));
+    expect((await validateSyncTimeline(episode, root)).valid).toBe(true);
+    const first = episode.syncTimeline!.records[0]!;
+    const second = episode.syncTimeline!.records[1]!;
+    first.endMs = first.subtitles[0]!.endMs = episode.shots[0]!.audioEndMs = 1800;
+    second.startMs = second.subtitles[0]!.startMs = episode.shots[1]!.audioStartMs = 1800;
+    expect((await validateSyncTimeline(episode, root)).errors.join(' ')).toMatch(
+      /measured speech boundaries/,
+    );
+  });
+});

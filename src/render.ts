@@ -3,7 +3,7 @@ import { access, mkdir, readFile, rename, unlink } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { resolveContained } from './paths.js';
-import { sha256 } from './manifest.js';
+import { sha256, validateEpisode } from './manifest.js';
 import type { Episode } from './types.js';
 import { validateSyncTimeline } from './sync.js';
 
@@ -82,6 +82,11 @@ export async function renderStillEpisode(
     throw new Error(
       'render requires an audio-locked sync timeline; legacy episodes are legacy-unverified',
     );
+  if (episode.imagePolicy || episode.series?.evolution) {
+    const validation = await validateEpisode(episode, root);
+    if (!validation.valid)
+      throw new Error(`render requires strict manifest validation: ${validation.errors.join('; ')}`);
+  }
   const sync = await validateSyncTimeline(episode, root);
   if (!sync.valid)
     throw new Error(

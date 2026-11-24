@@ -30,8 +30,9 @@ export interface AudioAlignment {
   durationMs: number;
   source: AlignmentSource;
   verified: boolean;
-  /** Word timing is only asserted when every transcript token is matched. */
+  /** Group-count-only timings are legacy estimates, not verified lexical mapping. */
   granularity?: 'word' | 'phrase';
+  wordEvidence?: 'token-aligned' | 'manual-reviewed' | 'group-count-only';
   evidenceNotes?: string;
   phrases?: Array<{ text: string; startMs: number; endMs: number }>;
   words: WordTiming[];
@@ -445,8 +446,9 @@ export async function synthesizeKokoroTts(
       source: 'provider',
       verified: true,
       granularity: 'word',
+      wordEvidence: 'group-count-only',
       evidenceNotes:
-        'Each transcript token matched one Kokoro phoneme group; no interpolation.',
+        'Kokoro phoneme group count matches transcript token count; lexical mapping is unverified. Strict timelines require reviewed word or measured phrase evidence.',
       words: groupKokoroTimings(options.transcript, run.timings),
     };
     validateKokoroAlignment(alignment);

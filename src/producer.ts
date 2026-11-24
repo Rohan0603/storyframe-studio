@@ -190,11 +190,15 @@ export function stageFingerprint(
   if (rank >= 2)
     inputs.push(
       episode.beats,
+      episode.series,
+      episode.imagePolicy,
       episode.syncTimeline,
       episode.shots.map((shot) => ({
         id: shot.id,
         beatIds: shot.beatIds,
         requiredVisualEvent: shot.requiredVisualEvent,
+        imagePrompt: shot.imagePrompt,
+        seriesBinding: shot.seriesBinding,
         characters: shot.characters,
         props: shot.props,
         environment: shot.environment,
