@@ -41,6 +41,9 @@ describe('image production hardening', () => {
     const gray = new Uint8Array(width * height).fill(65);
     for (let y = 0; y < height; y += 1) gray[y * width + 50] = 255;
     expect(detectPanelGutters(gray, width, height)).toBe(true);
+    const thick = new Uint8Array(width * height).fill(65);
+    for (let y = 0; y < height; y++) for (let x = 46; x < 54; x++) thick[y * width + x] = 255;
+    expect(detectPanelGutters(thick, width, height)).toBe(true);
     expect(
       detectPanelGutters(
         new Uint8Array(width * height).fill(75),

@@ -77,6 +77,34 @@ export function detectPanelGutters(
     }
     if (boundary / width >= threshold) return true;
   }
+  // Detect a thick divider too; a narrow-edge check alone misses blank bands.
+  for (const vertical of [true, false]) {
+    const across = vertical ? width : height;
+    const along = vertical ? height : width;
+    const at = (a: number, b: number): number =>
+      gray[vertical ? b * width + a : a * width + b]!;
+    for (const polarity of [0, 255]) {
+      let start = -1;
+      for (let x = Math.floor(across * 0.2); x <= Math.floor(across * 0.8); x++) {
+        let near = 0;
+        for (let b = 0; b < along; b++)
+          if (Math.abs(at(x, b) - polarity) < 32) near++;
+        if (near / along >= threshold) {
+          if (start === -1) start = x;
+        } else if (start !== -1) {
+          const band = x - start;
+          if (band >= 3 && band <= across * 0.15) {
+            let contrast = 0;
+            for (let b = 0; b < along; b++)
+              if (Math.abs(at(start - 1, b) - polarity) > 35 &&
+                  Math.abs(at(x, b) - polarity) > 35) contrast++;
+            if (contrast / along >= threshold) return true;
+          }
+          start = -1;
+        }
+      }
+    }
+  }
   return false;
 }
 
