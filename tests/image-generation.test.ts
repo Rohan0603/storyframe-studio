@@ -384,6 +384,16 @@ describe('image generation contracts', () => {
     });
     expect(reconciled.status).toBe('reconciled');
     expect(reconciled.outputPath).toBe('images/shot-01.png');
+    expect(() =>
+      reconcileReceipt(unknown, {
+        status: 'persisted',
+        dispatchToken: 'replacement-token',
+        outputPath: 'images/shot-01.png',
+        sha256: 'b'.repeat(64),
+        width: 1,
+        height: 1,
+      }),
+    ).toThrow(/dispatch token cannot change/);
   });
 
   it('binds attempts to a durable batch journal across restart', async () => {

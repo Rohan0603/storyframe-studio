@@ -206,14 +206,16 @@ export function transitionReceipt(
     throw new Error(`receipt cannot transition from ${receipt.status}`);
   if (transition.status === 'dispatched')
     throw new Error('receipt cannot retry without an explicit new attempt');
-  const dispatchToken =
-    transition.status === 'persisted'
-      ? transition.dispatchToken
-      : receipt.dispatchToken;
+  if (
+    transition.status === 'persisted' &&
+    transition.dispatchToken &&
+    transition.dispatchToken !== receipt.dispatchToken
+  )
+    throw new Error('dispatch token cannot change after dispatch');
   return {
     ...receipt,
     ...transition,
-    dispatchToken: dispatchToken ?? receipt.dispatchToken,
+    dispatchToken: receipt.dispatchToken,
     recordedAt: new Date().toISOString(),
   };
 }
@@ -224,9 +226,16 @@ export function reconcileReceipt(
 ): ImageReceipt {
   if (receipt.status !== 'unknown')
     throw new Error('only unknown receipts can be reconciled');
+  if (
+    transition.status === 'persisted' &&
+    transition.dispatchToken &&
+    transition.dispatchToken !== receipt.dispatchToken
+  )
+    throw new Error('dispatch token cannot change during reconciliation');
   return {
     ...receipt,
     ...transition,
+    dispatchToken: receipt.dispatchToken,
     status: 'reconciled',
     recordedAt: new Date().toISOString(),
   };
