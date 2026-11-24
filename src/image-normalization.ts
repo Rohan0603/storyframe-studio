@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { lstat, mkdir } from 'node:fs/promises';
+import { link, lstat, mkdir, unlink, writeFile } from 'node:fs/promises';
+import { randomUUID, createHash } from 'node:crypto';
 import { dirname } from 'node:path';
 import { resolveContained } from './paths.js';
 import { readPersistedImage } from './image-generation.js';
@@ -8,6 +9,8 @@ export interface NormalizationEvidence {
   native: { path: string; sha256: string; width: number; height: number };
   output: { path: string; sha256: string; width: 1920; height: 1080 };
   tool: 'ffmpeg';
+  receiptPath: string;
+  receiptSha256: string;
 }
 
 function execute(ffmpeg: string, args: string[]): Promise<void> {
@@ -51,7 +54,9 @@ export async function normalizeGeneratedStill(
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
   await mkdir(dirname(output), { recursive: true });
-  await execute(ffmpegPath, [
+  const temporary = `${output}.${randomUUID()}.png`;
+  try {
+    await execute(ffmpegPath, [
     '-hide_banner',
     '-loglevel',
     'error',
@@ -66,19 +71,29 @@ export async function normalizeGeneratedStill(
     'image2',
     '-vcodec',
     'png',
-    output,
-  ]);
+    temporary,
+    ]);
+    await link(temporary, output);
+  } finally {
+    await unlink(temporary).catch(() => undefined);
+  }
   const image = await readPersistedImage(root, normalizedPath);
   if (image.width !== 1920 || image.height !== 1080)
     throw new Error('normalized image is not exactly 1920x1080');
-  return {
+  const evidence = {
     native: { path: nativePath, ...native },
     output: {
       path: normalizedPath,
       sha256: image.sha256,
-      width: 1920,
-      height: 1080,
+      width: 1920 as const,
+      height: 1080 as const,
     },
-    tool: 'ffmpeg',
+    tool: 'ffmpeg' as const,
   };
+  const receiptPath = `receipts/normalize-${randomUUID()}.json`;
+  const receipt = await resolveContained(root, receiptPath);
+  const bytes = Buffer.from(JSON.stringify(evidence, null, 2) + '\n');
+  await mkdir(dirname(receipt), { recursive: true });
+  await writeFile(receipt, bytes, { flag: 'wx' });
+  return { ...evidence, receiptPath, receiptSha256: createHash('sha256').update(bytes).digest('hex') };
 }

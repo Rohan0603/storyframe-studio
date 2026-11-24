@@ -1,4 +1,7 @@
 import { spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { resolveContained } from './paths.js';
 import { readPersistedImage } from './image-generation.js';
 
@@ -78,6 +81,8 @@ export function detectPanelGutters(
 }
 
 export interface ScreeningResult {
+  version: 1;
+  imagePath: string;
   imageSha256: string;
   collage: ScreeningFlag;
   text: 'clear' | 'detected' | 'unknown';
@@ -144,6 +149,8 @@ export async function screenGeneratedStill(
     notes.push('local OCR unavailable; visual text remains unverified');
   }
   return {
+    version: 1,
+    imagePath: path,
     imageSha256: image.sha256,
     collage,
     text,
@@ -151,4 +158,17 @@ export async function screenGeneratedStill(
     notes: notes.join('; '),
     detectedText,
   };
+}
+
+export async function persistStillScreening(
+  root: string,
+  path: string,
+): Promise<ScreeningResult & { evidencePath: string; evidenceSha256: string }> {
+  const result = await screenGeneratedStill(root, path);
+  const evidencePath = `receipts/screen-${randomUUID()}.json`;
+  const target = await resolveContained(root, evidencePath);
+  const bytes = Buffer.from(JSON.stringify(result, null, 2) + '\n');
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, bytes, { flag: 'wx' });
+  return { ...result, evidencePath, evidenceSha256: createHash('sha256').update(bytes).digest('hex') };
 }

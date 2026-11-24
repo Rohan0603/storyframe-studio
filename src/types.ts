@@ -189,6 +189,9 @@ export interface Shot {
       text: 'clear' | 'detected' | 'unknown';
       checkedBy: string;
       notes: string;
+      evidencePath?: string;
+      evidenceSha256?: string;
+      allowedText?: string[];
     };
   };
   referenceBinding?: {
@@ -257,6 +260,10 @@ export interface ImageProvenance {
   attemptId: string;
   /** ID actually returned by the native generator. Never infer from shot or attempt IDs. */
   nativeReceiptId?: string;
+  journalPath?: string;
+  journalEntrySha256?: string;
+  providerEvidence?: { path: string; sha256: string };
+  normalizationReceipt?: { path: string; sha256: string };
   /** Original native output preserved separately when normalized. */
   nativeImage?: { path: string; sha256: string; width: number; height: number };
   receiptStatus: 'persisted' | 'reconciled';

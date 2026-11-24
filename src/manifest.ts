@@ -13,6 +13,7 @@ import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
 import { createShotPromptPacket, readPersistedImage } from './image-generation.js';
 import { validateSyncTimeline } from './sync.js';
+import { validateImageEvidence } from './production-evidence.js';
 import {
   loadEpisodeEvolution,
   validateResolvedShotEvolution,
@@ -132,10 +133,12 @@ export async function validateEpisode(
     episode.imagePolicy &&
     (episode.imagePolicy.width !== 1920 ||
       episode.imagePolicy.height !== 1080 ||
-      typeof episode.imagePolicy.requireNativeReceipt !== 'boolean' ||
-      typeof episode.imagePolicy.requireVisualScreening !== 'boolean')
+      episode.imagePolicy.requireNativeReceipt !== true ||
+      episode.imagePolicy.requireVisualScreening !== true)
   )
-    errors.push('imagePolicy must define 1920x1080 and both QA switches');
+    errors.push('imagePolicy must define 1920x1080 and enable both QA switches');
+  if (episode.series?.evolution && !episode.imagePolicy)
+    errors.push('evolving series production requires strict imagePolicy');
   if (!HASH.test(episode?.narration?.textSha256 ?? ''))
     errors.push('narration.textSha256 must be a SHA-256');
   if (
@@ -359,6 +362,7 @@ export async function validateEpisode(
           errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
+  const nativeReceiptIds = new Set<string>();
   for (const shot of Array.isArray(episode?.shots) ? episode.shots : []) {
     if (!shot || typeof shot !== 'object') {
       errors.push('shot must be an object');
@@ -616,6 +620,12 @@ export async function validateEpisode(
       }
     }
     if (strict && shot.image.sha256 !== null) {
+      const receiptId = shot.image.provenance?.nativeReceiptId;
+      if (receiptId) {
+        if (nativeReceiptIds.has(receiptId)) errors.push('duplicate native generation receipt: ' + receiptId);
+        nativeReceiptIds.add(receiptId);
+      }
+      errors.push(...await validateImageEvidence(root, episode, shot));
       try {
         if (!parsedReferenceBible || !loadedReferenceBible?.valid || !episode.story)
           throw new Error('strict image requires validated frozen references and script');

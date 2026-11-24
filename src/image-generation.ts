@@ -89,6 +89,7 @@ export interface ImageReceipt {
   attemptId: string;
   /** Real provider receipt, if the native client exposed one. */
   nativeReceiptId?: string;
+  providerEvidence?: { path: string; sha256: string };
   shotId?: string;
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
@@ -106,6 +107,7 @@ export type ReceiptTransition =
   | {
       status: 'persisted';
       nativeReceiptId?: string;
+      providerEvidence?: { path: string; sha256: string };
       outputPath: string;
       sha256: string;
       width: number;
@@ -233,6 +235,7 @@ export interface ImageOutputMetadata {
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
   nativeReceiptId?: string;
+  providerEvidence?: { path: string; sha256: string };
 }
 
 function stableJson(value: unknown): string {
@@ -584,6 +587,8 @@ export async function ingestImageOutput(
   sha256: string;
   width: number;
   height: number;
+  nativeReceiptId?: string;
+  providerEvidence?: { path: string; sha256: string };
 }> {
   const target = await resolveContained(root, outputPath);
   let dimensions: { width: number; height: number };
@@ -612,7 +617,10 @@ export async function ingestImageOutput(
   }
   assertSafeRelativePath(metadata.attemptId, 'attempt ID');
   await writeFile(target, bytes, { flag: 'wx' });
-  return { status: 'persisted', sha256: sha256(bytes), ...dimensions };
+  return { status: 'persisted', sha256: sha256(bytes), ...dimensions,
+    ...(metadata.nativeReceiptId ? { nativeReceiptId: metadata.nativeReceiptId } : {}),
+    ...(metadata.providerEvidence ? { providerEvidence: metadata.providerEvidence } : {}),
+  };
 }
 
 async function assertRegularOrMissing(path: string): Promise<void> {

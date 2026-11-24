@@ -16,7 +16,8 @@ import { recordImagePreflight } from './image-generation.js';
 import { renderStillEpisode } from './render.js';
 import { validateAndWriteTimelineReview } from './sync.js';
 import { normalizeGeneratedStill } from './image-normalization.js';
-import { screenGeneratedStill } from './visual-screening.js';
+import { persistStillScreening } from './visual-screening.js';
+import { createValidatedShotPromptPacket } from './image-generation.js';
 import { fetchAndVerifyYouTubeState } from './youtube-state.js';
 import {
   approveProducerStage,
@@ -56,6 +57,7 @@ async function inputHashes(
   const dependencies = JSON.stringify({
     narration: episode.narration,
     series: episode.series,
+    imagePolicy: episode.imagePolicy,
     alignment: episode.alignment,
     story: episode.story,
     beats: episode.beats,
@@ -73,7 +75,7 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|normalize-still|screen-still|verify-youtube|render> <episode-root> [episode-id] [provider]',
+      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|normalize-still|screen-still|shot-prompt|verify-youtube|render> <episode-root> [episode-id] [provider]',
     );
   if (command === 'verify-youtube') {
     const videoId = args[2];
@@ -108,11 +110,16 @@ export async function runCli(args: string[]): Promise<number> {
     );
     return 0;
   }
+  if (command === 'shot-prompt') {
+    if (!args[2]) throw new Error('shot-prompt requires a shot ID');
+    console.log(JSON.stringify(await createValidatedShotPromptPacket(root, await load(root), args[2]), null, 2));
+    return 0;
+  }
   if (command === 'screen-still') {
     if (!args[2])
       throw new Error('screen-still requires a relative image path');
     console.log(
-      JSON.stringify(await screenGeneratedStill(root, args[2]), null, 2),
+      JSON.stringify(await persistStillScreening(root, args[2]), null, 2),
     );
     return 0;
   }
