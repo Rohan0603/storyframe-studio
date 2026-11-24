@@ -50,6 +50,8 @@ export interface ShotPromptPacket {
   crop: string;
   forbidden: string[];
   referenceBinding: NonNullable<Shot['referenceBinding']>;
+  /** Explicit current appearance/prop variant IDs included in the prompt hash. */
+  activeSeriesStates?: Record<string, string>;
   storyRevisionId: string;
   scriptRevisionSha256: string;
   packetSha256: string;
@@ -333,6 +335,9 @@ export function createShotPromptPacket(
     crop: shot.composition,
     forbidden: shot.forbidden,
     referenceBinding: shot.referenceBinding,
+    ...(shot.seriesBinding?.entityStates
+      ? { activeSeriesStates: shot.seriesBinding.entityStates }
+      : {}),
     storyRevisionId: revision.id,
     scriptRevisionSha256: revision.textSha256,
   };
