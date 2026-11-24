@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolveContained } from './paths.js';
 import { isStableId } from './ids.js';
-import { validateReferenceBible } from './reference-bible.js';
+import { canonHash, validateReferenceBible } from './reference-bible.js';
 import type {
   Episode,
   ReferenceBible,
@@ -310,7 +310,19 @@ export async function loadEpisodeEvolution(
       )
         throw new Error('series predecessor reference bible hash mismatch');
       const bible = JSON.parse(bibleBytes.toString('utf8')) as ReferenceBible;
-      const bibleValidation = await validateReferenceBible(root, bible);
+      const expected = manifest.story
+        ? {
+            storyRevisionId: manifest.story.scriptRevision.id,
+            storyRevisionSha256: manifest.story.scriptRevision.textSha256,
+            canonSha256: canonHash(manifest.story.canon),
+            canon: manifest.story.canon,
+          }
+        : undefined;
+      const bibleValidation = await validateReferenceBible(
+        root,
+        bible,
+        expected,
+      );
       if (!bibleValidation.valid)
         throw new Error(
           'series predecessor reference bible is invalid: ' +
@@ -350,6 +362,15 @@ export async function loadEpisodeEvolution(
           imageSha256?: string;
           requiredVisualEvent?: string;
           packetSha256?: string;
+          pixelsDecoded?: boolean;
+          requiredActionPresent?: boolean;
+          requiredCharactersPresent?: boolean;
+          requiredPropsPresent?: boolean;
+          continuityMatches?: boolean;
+          forbiddenTextPresent?: boolean;
+          staleReferences?: boolean;
+          notes?: string;
+          referenceFreezeSha256?: string;
           reviewedBy?: string;
         };
         if (
@@ -357,6 +378,17 @@ export async function loadEpisodeEvolution(
           pixel.imageSha256 !== shot.image.sha256 ||
           pixel.requiredVisualEvent !== shot.requiredVisualEvent ||
           !pixel.packetSha256 ||
+          pixel.pixelsDecoded !== true ||
+          pixel.requiredActionPresent !== true ||
+          pixel.requiredCharactersPresent !== true ||
+          pixel.requiredPropsPresent !== true ||
+          pixel.continuityMatches !== true ||
+          pixel.forbiddenTextPresent === true ||
+          pixel.staleReferences === true ||
+          !pixel.notes?.trim() ||
+          (manifest.referenceBible &&
+            pixel.referenceFreezeSha256 !==
+              manifest.referenceBible.freezeSha256) ||
           !pixel.reviewedBy?.trim()
         )
           throw new Error(

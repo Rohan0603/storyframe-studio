@@ -334,8 +334,16 @@ describe('strict production integration', () => {
         props: shot.props,
         environment: shot.environment,
         packetSha256: 'a'.repeat(64),
-        reviewedBy: 'archived-fixture',
         pixelsDecoded: true,
+        requiredActionPresent: true,
+        requiredCharactersPresent: true,
+        requiredPropsPresent: true,
+        continuityMatches: true,
+        forbiddenTextPresent: false,
+        staleReferences: false,
+        notes: 'Archived pixel inspection',
+        referenceFreezeSha256: episode.referenceBible!.freezeSha256,
+        reviewedBy: 'archived-fixture',
       });
       const pixelPath = `receipts/pixel-${shot.id}.json`;
       await writeFile(join(root, pixelPath), pixelEvidence);
@@ -348,6 +356,7 @@ describe('strict production integration', () => {
         props: shot.props,
         environment: shot.environment,
         packetSha256: 'a'.repeat(64),
+        referenceFreezeSha256: episode.referenceBible!.freezeSha256,
         reviewedBy: 'archived-fixture',
       };
     }
