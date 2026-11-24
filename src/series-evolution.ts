@@ -300,6 +300,7 @@ export async function loadEpisodeEvolution(
       manifest.referenceBible?.status !== 'frozen'
     )
       throw new Error('series predecessor has no frozen reference bible');
+    let bible: ReferenceBible | null = null;
     if (manifest.referenceBible) {
       const bibleBytes = await readFile(
         await resolveContained(root, manifest.referenceBible.path),
@@ -309,7 +310,7 @@ export async function loadEpisodeEvolution(
         manifest.referenceBible.sha256
       )
         throw new Error('series predecessor reference bible hash mismatch');
-      const bible = JSON.parse(bibleBytes.toString('utf8')) as ReferenceBible;
+      bible = JSON.parse(bibleBytes.toString('utf8')) as ReferenceBible;
       const expected = manifest.story
         ? {
             storyRevisionId: manifest.story.scriptRevision.id,
@@ -329,7 +330,10 @@ export async function loadEpisodeEvolution(
             bibleValidation.errors.join('; '),
         );
     }
-    for (const shot of manifest.shots) {
+    const bibleEntries = new Map(
+      bible?.entries.map((entry) => [entry.id, entry]) ?? [],
+    );
+    for (const [shotIndex, shot] of manifest.shots.entries()) {
       if (shot.image.status !== 'approved')
         throw new Error(`series predecessor shot ${shot.id} is not approved`);
       if (
@@ -341,6 +345,31 @@ export async function loadEpisodeEvolution(
         throw new Error(
           `series predecessor shot ${shot.id} lacks bound visual review evidence`,
         );
+      if (manifest.series?.evolution && !shot.referenceBinding)
+        throw new Error(`series predecessor shot ${shot.id} lacks references`);
+      for (const referenceId of shot.referenceBinding?.referenceIds ?? []) {
+        const entry = bibleEntries.get(referenceId);
+        if (
+          !entry ||
+          shot.referenceBinding!.referenceHashes[referenceId] !==
+            entry.image.sha256
+        )
+          throw new Error(
+            `series predecessor shot ${shot.id} has a stale reference binding`,
+          );
+      }
+      if (manifest.series?.evolution) {
+        const stateErrors = validateShotEvolution(
+          previous,
+          previous.throughEpisode!,
+          shot,
+          shotIndex,
+        );
+        if (stateErrors.length)
+          throw new Error(
+            `series predecessor shot ${shot.id} has invalid state bindings: ${stateErrors.join('; ')}`,
+          );
+      }
       if (manifest.imagePolicy?.requireVisualScreening) {
         const evidence = shot.semanticReview.pixelEvidence;
         if (!evidence)
