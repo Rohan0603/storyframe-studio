@@ -78,6 +78,8 @@ export interface BatchPlan {
 export interface ImageReceipt {
   batchId?: string;
   attemptId: string;
+  /** Real provider receipt, if the native client exposed one. */
+  nativeReceiptId?: string;
   shotId?: string;
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
@@ -94,6 +96,7 @@ export type ReceiptTransition =
   | { status: 'dispatched' }
   | {
       status: 'persisted';
+      nativeReceiptId?: string;
       outputPath: string;
       sha256: string;
       width: number;
@@ -205,6 +208,8 @@ export interface PixelInspection {
   continuityMatches: boolean;
   forbiddenTextPresent: boolean;
   staleReferences: boolean;
+  collageSuspected?: boolean;
+  unwantedLogoPresent?: boolean;
   notes: string;
 }
 
@@ -218,6 +223,7 @@ export interface ImageOutputMetadata {
   attemptId: string;
   packetSha256: string;
   tool: 'codex-desktop.image_gen';
+  nativeReceiptId?: string;
 }
 
 function stableJson(value: unknown): string {
@@ -600,6 +606,8 @@ export function inspectPixels(inspection: PixelInspection): PixelReviewResult {
   if (inspection.forbiddenTextPresent)
     reasons.push('unwanted text is present in pixels');
   if (inspection.staleReferences) reasons.push('references are stale');
+  if (inspection.collageSuspected) reasons.push('suspected multi-panel or contact sheet image');
+  if (inspection.unwantedLogoPresent) reasons.push('unwanted logo is visible');
   if (!inspection.notes.trim())
     reasons.push('independent pixel review notes are missing');
   return {
