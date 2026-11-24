@@ -223,6 +223,7 @@ export function stageFingerprint(
       episode.narration.audioSha256,
       episode.narration.audioDurationMs,
       episode.narration.alignmentVerified,
+      episode.narration.alignmentSha256,
       episode.alignment,
     );
   if (rank >= 6) inputs.push(episode.narration.captionsPath);

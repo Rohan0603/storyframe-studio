@@ -43,6 +43,7 @@ export interface Episode {
     audioPath: string;
     alignmentPath: string;
     alignmentVerified: boolean;
+    alignmentSha256?: string;
     model?: string;
     voiceName?: string;
     audioSha256?: string;

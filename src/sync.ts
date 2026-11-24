@@ -59,12 +59,11 @@ export async function validateSyncTimeline(
     errors.push('sync timeline audio is unavailable or unsafe');
   }
   try {
-    const alignment = JSON.parse(
-      await readFile(
-        await resolveContained(root, timeline.alignmentPath),
-        'utf8',
-      ),
-    ) as {
+    const alignmentBytes = await readFile(await resolveContained(root, timeline.alignmentPath));
+    if ((episode.imagePolicy || episode.series?.evolution) &&
+        episode.narration.alignmentSha256 !== hash(alignmentBytes))
+      errors.push('strict sync timeline requires current alignment evidence hash');
+    const alignment = JSON.parse(alignmentBytes.toString('utf8')) as {
       verified?: boolean;
       source?: string;
       audioSha256?: string;

@@ -239,6 +239,7 @@ export async function runCli(args: string[]): Promise<number> {
       );
     episode.narration.provider = provider;
     episode.narration.alignmentVerified = false;
+    delete episode.narration.alignmentSha256;
     delete episode.narration.audioSha256;
     delete episode.narration.audioDurationMs;
     delete episode.narration.receiptPath;

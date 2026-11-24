@@ -28,6 +28,7 @@ export interface SeriesEvolution {
   version: 1;
   seriesId: string;
   throughEpisode?: number;
+  episodeId?: string;
   entities: EvolutionEntity[];
 }
 
@@ -236,7 +237,7 @@ export async function loadEpisodeEvolution(
   if (!loaded.evolution || loaded.errors.length)
     throw new Error(loaded.errors.join('; '));
   const evolution = loaded.evolution;
-  if (evolution.throughEpisode !== config.episodeOrder)
+  if (evolution.throughEpisode !== config.episodeOrder || evolution.episodeId !== episode.episodeId)
     throw new Error('series evolution must identify its current episode order');
   const prior = config.predecessor;
   if (config.episodeOrder > 1 && !prior)
@@ -258,6 +259,7 @@ export async function loadEpisodeEvolution(
       validateEvolutionShape(previous).length ||
       previous.seriesId !== series.seriesId ||
       previous.throughEpisode !== config.episodeOrder - 1 ||
+      previous.episodeId !== manifest.episodeId ||
       !manifest.release?.productionQAPassed
     )
       throw new Error('series predecessor is not an approved prior episode');
@@ -287,6 +289,11 @@ export async function loadEpisodeEvolution(
           entity.states.some((state) => state.fromEpisode !== config.episodeOrder))
         throw new Error('new series entity cannot be backdated: ' + entity.entityId);
     }
+  }
+  for (const [kind, roster] of [['character', episode.story?.canon.characters ?? []], ['prop', episode.story?.canon.props ?? []]] as const) {
+    for (const item of roster)
+      if (!evolution.entities.some((entity) => entity.entityId === item.id && entity.kind === kind))
+        throw new Error('series snapshot omits a canonical entity: ' + item.id);
   }
   for (const entity of evolution.entities) {
     for (const state of entity.states) {

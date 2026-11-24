@@ -12,6 +12,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { assertSafeRelativePath, resolveContained } from './paths.js';
 import {
   freezeReferenceBible,
+  canonHash,
   validateReferenceBible,
 } from './reference-bible.js';
 import { hashNormalizedSpokenText } from './story-layer.js';
@@ -846,6 +847,10 @@ export async function createValidatedShotPromptPacket(
   const shot = episode.shots.find((item) => item.id === shotId);
   if (!shot || !episode.referenceBible || !episode.story)
     throw new Error('generation requires a known shot and approved reference bible');
+  const script = await readFile(await resolveContained(root, episode.script.path));
+  if (!episode.script.approved || sha256(script) !== episode.script.sha256 ||
+      script.toString('utf8') !== episode.story.scriptRevision.text)
+    throw new Error('generation requires the approved exact script bytes');
   const bytes = await readFile(await resolveContained(root, episode.referenceBible.path));
   if (sha256(bytes) !== episode.referenceBible.sha256 || episode.referenceBible.status !== 'frozen')
     throw new Error('generation requires current frozen reference bible bytes');
@@ -853,7 +858,7 @@ export async function createValidatedShotPromptPacket(
   const validatedReferences = await loadValidatedReferenceBible(root, bible, {
     storyRevisionId: episode.story.scriptRevision.id,
     storyRevisionSha256: episode.story.scriptRevision.textSha256,
-    canonSha256: episode.referenceBible.canonSha256,
+    canonSha256: canonHash(episode.story.canon),
     canon: episode.story.canon,
   });
   const evolution = episode.series?.evolution
