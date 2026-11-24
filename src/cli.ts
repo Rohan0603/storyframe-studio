@@ -15,6 +15,8 @@ import { densityNote, storyboardMarkdown } from './alignment.js';
 import { recordImagePreflight } from './image-generation.js';
 import { renderStillEpisode } from './render.js';
 import { validateAndWriteTimelineReview } from './sync.js';
+import { normalizeGeneratedStill } from './image-normalization.js';
+import { screenGeneratedStill } from './visual-screening.js';
 import {
   approveProducerStage,
   assessProducer,
@@ -70,8 +72,18 @@ export async function runCli(args: string[]): Promise<number> {
   const [command, root = '.', episodeId = 'episode-01'] = args;
   if (!command)
     throw new Error(
-      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|render> <episode-root> [episode-id] [provider]',
+      'usage: storyframe <new|select-provider|plan|align|references|validate|resume|image-preflight|sync-review|normalize-still|screen-still|render> <episode-root> [episode-id] [provider]',
     );
+  if (command === 'normalize-still') {
+    if (!args[2] || !args[3]) throw new Error('normalize-still requires native and output relative paths');
+    console.log(JSON.stringify(await normalizeGeneratedStill(root, args[2], args[3]), null, 2));
+    return 0;
+  }
+  if (command === 'screen-still') {
+    if (!args[2]) throw new Error('screen-still requires a relative image path');
+    console.log(JSON.stringify(await screenGeneratedStill(root, args[2]), null, 2));
+    return 0;
+  }
   if (command === 'new') {
     await createEpisode(root, episodeId);
     return 0;
