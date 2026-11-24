@@ -326,6 +326,30 @@ describe('strict production integration', () => {
         pixelsDecoded: true,
         notes: 'Archived fixture review',
       };
+      const pixelEvidence = JSON.stringify({
+        shotId: shot.id,
+        imageSha256: shot.image.sha256,
+        requiredVisualEvent: shot.requiredVisualEvent,
+        characters: shot.characters,
+        props: shot.props,
+        environment: shot.environment,
+        packetSha256: 'a'.repeat(64),
+        reviewedBy: 'archived-fixture',
+        pixelsDecoded: true,
+      });
+      const pixelPath = `receipts/pixel-${shot.id}.json`;
+      await writeFile(join(root, pixelPath), pixelEvidence);
+      shot.semanticReview.pixelEvidence = {
+        path: pixelPath,
+        sha256: sha(pixelEvidence),
+        shotId: shot.id,
+        requiredVisualEvent: shot.requiredVisualEvent,
+        characters: shot.characters,
+        props: shot.props,
+        environment: shot.environment,
+        packetSha256: 'a'.repeat(64),
+        reviewedBy: 'archived-fixture',
+      };
     }
     const archived = JSON.stringify(episode);
     await writeFile(join(root, 'series-bible/previous.json'), previous);

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolveContained } from './paths.js';
 import { isStableId } from './ids.js';
+import { validateReferenceBible } from './reference-bible.js';
 import type {
   Episode,
   ReferenceBible,
@@ -308,6 +309,13 @@ export async function loadEpisodeEvolution(
         manifest.referenceBible.sha256
       )
         throw new Error('series predecessor reference bible hash mismatch');
+      const bible = JSON.parse(bibleBytes.toString('utf8')) as ReferenceBible;
+      const bibleValidation = await validateReferenceBible(root, bible);
+      if (!bibleValidation.valid)
+        throw new Error(
+          'series predecessor reference bible is invalid: ' +
+            bibleValidation.errors.join('; '),
+        );
     }
     for (const shot of manifest.shots) {
       if (shot.image.status !== 'approved')
@@ -321,6 +329,40 @@ export async function loadEpisodeEvolution(
         throw new Error(
           `series predecessor shot ${shot.id} lacks bound visual review evidence`,
         );
+      if (manifest.imagePolicy?.requireVisualScreening) {
+        const evidence = shot.semanticReview.pixelEvidence;
+        if (!evidence)
+          throw new Error(
+            `series predecessor shot ${shot.id} lacks pixel evidence`,
+          );
+        const evidenceBytes = await readFile(
+          await resolveContained(root, evidence.path),
+        );
+        if (
+          createHash('sha256').update(evidenceBytes).digest('hex') !==
+          evidence.sha256
+        )
+          throw new Error(
+            `series predecessor shot ${shot.id} pixel evidence hash mismatch`,
+          );
+        const pixel = JSON.parse(evidenceBytes.toString('utf8')) as {
+          shotId?: string;
+          imageSha256?: string;
+          requiredVisualEvent?: string;
+          packetSha256?: string;
+          reviewedBy?: string;
+        };
+        if (
+          pixel.shotId !== shot.id ||
+          pixel.imageSha256 !== shot.image.sha256 ||
+          pixel.requiredVisualEvent !== shot.requiredVisualEvent ||
+          !pixel.packetSha256 ||
+          !pixel.reviewedBy?.trim()
+        )
+          throw new Error(
+            `series predecessor shot ${shot.id} pixel evidence is not bound to its contract`,
+          );
+      }
       const bytes = await readFile(
         await resolveContained(root, shot.image.path),
       );
