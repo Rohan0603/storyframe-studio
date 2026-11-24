@@ -13,6 +13,8 @@ import { validateAlignment } from './alignment.js';
 import { canonHash, validateReferenceBible } from './reference-bible.js';
 import { readPersistedImage } from './image-generation.js';
 import { validateSyncTimeline } from './sync.js';
+import { loadSeriesEvolution, validateShotEvolution } from './series-evolution.js';
+import type { SeriesEvolution } from './series-evolution.js';
 
 const HASH = /^[a-f0-9]{64}$/;
 export const sha256 = (bytes: Uint8Array | string): string =>
@@ -85,6 +87,7 @@ export async function validateEpisode(
     errors.push('script.sha256 must be a SHA-256');
   if (!HASH.test(episode?.referenceBundle?.sha256 ?? ''))
     errors.push('referenceBundle.sha256 must be a SHA-256');
+  let seriesEvolution: SeriesEvolution | null = null;
   if (episode?.series) {
     const series = episode.series;
     if (!isStableId(series.seriesId))
@@ -97,6 +100,11 @@ export async function validateEpisode(
       errors.push('series.visualFormat must be 2d-still or 3d-still');
     if (typeof series.applied !== 'boolean')
       errors.push('series.applied must be boolean');
+    if (series.evolution) {
+      const loaded = await loadSeriesEvolution(root, series);
+      errors.push(...loaded.errors);
+      if (loaded.errors.length === 0) seriesEvolution = loaded.evolution;
+    }
     await verifyFile(
       root,
       series.biblePath,
@@ -333,7 +341,7 @@ export async function validateEpisode(
           errors.push(`beat ${beat.id} references missing claim ${claimId}`);
   }
   const shotIds = new Set<string>();
-  for (const shot of Array.isArray(episode?.shots) ? episode.shots : []) {
+  for (const [shotIndex, shot] of (Array.isArray(episode?.shots) ? episode.shots : []).entries()) {
     if (!shot || typeof shot !== 'object') {
       errors.push('shot must be an object');
       continue;
@@ -523,7 +531,8 @@ export async function validateEpisode(
           ...shot.props,
           shot.environment,
         ]) {
-          if (!binding.referenceIds.includes(required))
+          const tracked = seriesEvolution?.entities.some((entity) => entity.entityId === required);
+          if (!tracked && !binding.referenceIds.includes(required))
             errors.push(
               `shot ${shot.id} is missing required visual reference ${required}`,
             );
@@ -531,6 +540,14 @@ export async function validateEpisode(
       }
     } else if (episode.referenceBible?.status === 'frozen') {
       errors.push(`shot ${shot.id} is missing a frozen reference binding`);
+    }
+    if (seriesEvolution && episode.series?.evolution) {
+      errors.push(...validateShotEvolution(
+        seriesEvolution,
+        episode.series.evolution.episodeOrder,
+        shot,
+        shotIndex,
+      ));
     }
     if (episode.series?.applied) {
       if (!shot.seriesBinding)
